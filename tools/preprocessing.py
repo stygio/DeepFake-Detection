@@ -85,6 +85,9 @@ def get_faces(img_path, resize_dim = (299, 299)):
 
 		faces.append(resized_img)
 
+	# Throw an exception if <faces> is an empty list:
+	if not faces:
+		raise ValueError("No faces detected.")
 	return np.array(faces)
 
 

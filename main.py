@@ -18,6 +18,7 @@ fake_img_dir = "E:\\FaceForensics_Dataset\\manipulated_sequences\\DeepFakeDetect
 real_img_dirs = misc.get_random_directory(real_img_dir)
 fake_img_dirs = misc.get_random_directory(fake_img_dir)
 
+
 def test1():
 	chosen_dir = next(real_img_dirs)
 	faces = None
@@ -42,4 +43,4 @@ def test2():
 	return output
 
 
-# test2()
+test2()
