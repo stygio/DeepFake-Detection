@@ -32,7 +32,7 @@ def test1():
 
 def test2():
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-	network = xception(pretrained = True, num_classes = 2).to(device)
+	network = xception(pretrained = True).to(device)
 	network.zero_grad()
 	criterion = nn.BCELoss()
 	optimizer = optim.SGD(network.parameters(), lr=0.001, momentum=0.9)
