@@ -1,0 +1,76 @@
+import cv2
+import time
+import numpy as np
+
+frame_rate = 30
+segment_length = 1 * frame_rate		# Segment length is the number of seconds
+
+
+def timestamp(frame_nr):
+	seconds = frame_nr / frame_rate
+	milliseconds = int((frame_nr % frame_rate) / frame_rate * 1000)
+	timestamp_string = time.strftime('%H$%M$%S', time.gmtime(seconds)) + "${0}".format(milliseconds)
+	return timestamp_string
+
+
+def getFrame(video_handle):
+	success_flag, frame = video_handle.read()
+	if not success_flag:
+		raise Exception("cv2.VideoCapture() returned (False, _)")
+	return frame
+
+
+def saveFrameCollection(filename):
+	video_handle = cv2.VideoCapture(filename)
+	frame_nr = 0
+	success_flag, image = video_handle.read()
+	image_path = filename.partition(".")[0] + "/"
+	frame_collection = np.asarray(image)
+	while (frame_nr < 60*frame_rate) and success_flag:
+		frame_nr += 1
+		success_flag, image = video_handle.read()
+		if frame_nr % segment_length == 0:
+			image_name = image_path + "segment{0}.png".format(int((frame_nr + 0)/segment_length))
+			print(image_name)
+			print(np.shape(frame_collection))
+			cv2.imwrite(image_name, frame_collection)
+			frame_collection = np.asarray(image)
+		else:
+			frame_collection = np.concatenate((frame_collection, image), axis=0)
+	video_handle.release()
+	cv2.destroyAllWindows()
+
+
+def loadFrameSequence(video_handle, start_frame, sequence_length, is_color):
+	try:
+		assert start_frame + sequence_length - 1 <= video_handle.get(7), "# of last frame larger than video length in frames"
+	except AssertionError:
+		cv2.destroyAllWindows()
+	current_frame = start_frame
+	video_handle.set(1, current_frame)	#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
+	frame = getFrame(video_handle)
+	if not is_color:
+		frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+	frame = np.expand_dims(frame, axis=0)
+	frame_sequence = frame
+	while current_frame < start_frame + sequence_length - 1:
+		current_frame += 1
+		frame = getFrame(video_handle)
+		if not is_color:
+			frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+		frame = np.expand_dims(frame, axis=0)
+		frame_sequence = np.concatenate((frame_sequence, frame), axis=0)
+	cv2.destroyAllWindows()
+	return frame_sequence
+
+
+def videoFromFrameSequence(filename, frame_sequence, fps, is_color):
+	FourCC = cv2.VideoWriter_fourcc(*'XVID')
+	frame_size = (np.shape(frame_sequence)[2], np.shape(frame_sequence)[1])
+	video_writer = cv2.VideoWriter(filename, FourCC, float(fps), frame_size, is_color)
+	for frame in frame_sequence:
+		video_writer.write(frame)
+	video_writer.release()
+	cv2.destroyAllWindows()
+
+
