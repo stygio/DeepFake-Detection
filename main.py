@@ -1,15 +1,15 @@
-# import torch
-# import torch.nn as nn
-# import torch.nn.functional as functional
-# import torch.optim as optim
-# import torchvision
-# import torchvision.transforms as transforms
-# from xception import xception
+import torch
+import torch.nn as nn
+import torch.nn.functional as functional
+import torch.optim as optim
+import torchvision
+import torchvision.transforms as transforms
 import os
 
-from tools.preprocessing import preprocess_image
-from tools.opencv_helpers import loadFrameSequence
 import tools.miscellaneous as misc
+from tools.preprocessing import get_faces, faces_to_tensor
+from tools.opencv_helpers import loadFrameSequence
+from networks.xception import xception
 
 
 # real_img_dir = "C:\\Users\\Andrzej\\Pictures\\tempgarbage"
@@ -18,12 +18,28 @@ fake_img_dir = "E:\\FaceForensics_Dataset\\manipulated_sequences\\DeepFakeDetect
 real_img_dirs = misc.get_random_directory(real_img_dir)
 fake_img_dirs = misc.get_random_directory(fake_img_dir)
 
-def test():
+def test1():
 	chosen_dir = next(real_img_dirs)
+	faces = None
 	for filename in os.listdir(chosen_dir):
 		full_path = os.path.join(chosen_dir, filename)
 		print("Processing file: {}".format(full_path))
-		faces = preprocess_image(img_path = full_path)
-		# yield faces
-		
-test()
+		faces = get_faces(img_path = full_path)
+		break
+
+	return faces
+	
+
+def test2():
+	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+	network = xception(pretrained = True, num_classes = 2).to(device)
+	network.zero_grad()
+	criterion = nn.BCELoss()
+	optimizer = optim.SGD(network.parameters(), lr=0.001, momentum=0.9)
+	data = faces_to_tensor(test1(), device)
+	output = network(data)
+
+	return output
+
+
+# test2()
