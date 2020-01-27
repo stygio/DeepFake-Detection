@@ -22,6 +22,7 @@ video_path = "E:\\FaceForensics_Dataset\\original_sequences\\c23\\videos\\000.mp
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
 def test1():
 	chosen_dir = next(real_img_dirs)
 	faces = None
@@ -31,7 +32,6 @@ def test1():
 		faces, face_positions = get_faces(img = full_path, isPath = True)
 		print("Face positions (Y, X): {}".format(face_positions))
 		break
-
 	return faces
 	
 
@@ -42,9 +42,8 @@ def test2():
 	optimizer = optim.SGD(network.parameters(), lr=0.001, momentum=0.9)
 	data = faces_to_tensor(test1(), device)
 	output = network(data)
-	print(output)
-
 	return output
+
 
 def test3():
 	batch = create_batch(video_path, device)

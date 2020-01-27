@@ -102,14 +102,14 @@ class Block(nn.Module):
         return x
 
 
-class OriginalXception(nn.Module):
+class Xception(nn.Module):
     """
     Xception optimized for the ImageNet dataset, as specified in
     https://arxiv.org/pdf/1610.02357.pdf
     """
     def __init__(self):
         # Constructor
-        super(OriginalXception, self).__init__()
+        super(Xception, self).__init__()
 
         self.conv1 = nn.Conv2d(3, 32, 3,2, 0, bias=False)
         self.bn1 = nn.BatchNorm2d(32)
@@ -191,16 +191,16 @@ class OriginalXception(nn.Module):
         return x
 
 
-class Xception(OriginalXception):
+class BinaryXception(Xception):
     """
     Xception with added layers for binary classification
     """
     def __init__(self):
         # Constructor
-        super(Xception, self).__init__()
+        super(BinaryXception, self).__init__()
 
         # Added for binary classification        
-        self.fc_classes = nn.Linear(1000, 2)
+        self.fc_classes = nn.Linear(1000, 1)
         self.sigmoid = nn.Sigmoid()
 
         #------- init weights --------
@@ -223,15 +223,15 @@ class Xception(OriginalXception):
         return x
 
 
-def xception(pretrained=False,**kwargs):
+def xception(pretrained = False, **kwargs):
     """
     Construct Xception.
     """
 
-    model = Xception(**kwargs)
+    model = BinaryXception(**kwargs)
     if pretrained:
         # Create a model that matches the pretrained waits
-        pretrained_model = OriginalXception()
+        pretrained_model = Xception()
         pretrained_model.load_state_dict(model_zoo.load_url(model_urls['xception']))
         pretrained_dict = pretrained_model.state_dict()
         model_dict = model.state_dict()
