@@ -25,7 +25,8 @@ def test1():
 	for filename in os.listdir(chosen_dir):
 		full_path = os.path.join(chosen_dir, filename)
 		print("Processing file: {}".format(full_path))
-		faces = get_faces(img_path = full_path)
+		faces, face_positions = get_faces(img_path = full_path)
+		print("Face positions (Y, X): {}".format(face_positions))
 		break
 
 	return faces
@@ -39,6 +40,7 @@ def test2():
 	optimizer = optim.SGD(network.parameters(), lr=0.001, momentum=0.9)
 	data = faces_to_tensor(test1(), device)
 	output = network(data)
+	print(output)
 
 	return output
 

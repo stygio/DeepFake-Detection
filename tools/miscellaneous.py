@@ -22,5 +22,5 @@ def get_random_directory(directory):
 	dir_list = os.listdir(directory)
 	random.shuffle(dir_list)
 	for name in dir_list:
-		print(name)
+		print("Chosen directory: {}".format(name))
 		yield os.path.join(directory, name)

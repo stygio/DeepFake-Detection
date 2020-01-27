@@ -17,7 +17,7 @@ def show_test_img(test_img):
 
 # Image preprocessing: face detection, cropping, resizing
 def get_faces(img_path, resize_dim = (299, 299)):
-	# Load image and resize if it's too big
+	# Load image and resize if it's too big (otherwise we run into an out-of-memory error with CUDA)
 	img = cv2.imread(img_path)
 	if np.shape(img)[0] > 720:
 		scale_factor = 720/np.shape(img)[0] # percent of original size
@@ -27,16 +27,21 @@ def get_faces(img_path, resize_dim = (299, 299)):
 		# resize image
 		img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
 	rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-	print(np.shape(rgb_img))
+	print("Debug: Retrieved image shape: {}".format(np.shape(rgb_img)))
 	
 	# Acquire face_locations, which is a list of tuples with locations
 	# of bounding boxes specified as (top, right, bottom, left)
 	face_locations = face_recognition.face_locations(rgb_img, model="cnn")
 	faces = []
+	face_positions = []
 	for face in face_locations:
+		# Retrieve original bounding box
 		(top, right, bottom, left) = face
 		crop_height = bottom - top
 		crop_width = right - left
+		# Get the face's position in the image
+		face_Y = top + (crop_height / 2)
+		face_X = left + (crop_width / 2)
 		# Modify bounds by crop_factor
 		top = top - int((crop_factor-1) * crop_height / 2)
 		bottom = bottom + int((crop_factor-1) * crop_height/ 2)
@@ -84,11 +89,13 @@ def get_faces(img_path, resize_dim = (299, 299)):
 		# show_test_img(resized_img)
 
 		faces.append(resized_img)
+		face_positions.append((face_Y, face_X))
 
 	# Throw an exception if <faces> is an empty list:
 	if not faces:
 		raise ValueError("No faces detected.")
-	return np.array(faces)
+
+	return np.array(faces), face_positions
 
 
 # Reshape array of faces and create tensor
