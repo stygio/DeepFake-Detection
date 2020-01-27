@@ -41,7 +41,7 @@ def saveFrameCollection(filename):
 	cv2.destroyAllWindows()
 
 
-def loadFrameSequence(video_handle, start_frame, sequence_length, is_color):
+def loadFrameSequence(video_handle, start_frame, sequence_length, is_color = True):
 	try:
 		assert start_frame + sequence_length - 1 <= video_handle.get(7), "# of last frame larger than video length in frames"
 	except AssertionError:

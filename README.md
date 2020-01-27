@@ -6,3 +6,5 @@ Repository for work on my Master's Thesis project. The goal is to examine state-
 * Multiple faces in a video
 
 * Handling frames without detected faces
+
+* Create a batch from a video

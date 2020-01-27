@@ -8,17 +8,22 @@ import random
 import face_recognition
 from torch import from_numpy as torch_from_numpy
 
+from tools import opencv_helpers
+
 crop_factor = 1.2
+
 
 def show_test_img(test_img):
 	cv2.imshow("test", test_img)
 	cv2.waitKey(0)
 	cv2.destroyAllWindows()
 
+
 # Image preprocessing: face detection, cropping, resizing
-def get_faces(img_path, resize_dim = (299, 299)):
+def get_faces(img, isPath = False, resize_dim = (299, 299)):
 	# Load image and resize if it's too big (otherwise we run into an out-of-memory error with CUDA)
-	img = cv2.imread(img_path)
+	if isPath:
+		img = cv2.imread(img)
 	if np.shape(img)[0] > 720:
 		scale_factor = 720/np.shape(img)[0] # percent of original size
 		width = int(img.shape[1] * scale_factor)
@@ -100,6 +105,38 @@ def get_faces(img_path, resize_dim = (299, 299)):
 
 # Reshape array of faces and create tensor
 def faces_to_tensor(faces, device):
-	data = np.moveaxis(faces, -1, 1)
-	data = torch_from_numpy(data).float().to(device)
-	return data
+	faces_tensor = np.moveaxis(faces, -1, 1)
+	print("Debug: Tensor shape: {}".format(np.shape(faces_tensor)))
+	faces_tensor = torch_from_numpy(faces_tensor).float().to(device)
+	return faces_tensor
+
+
+# Create a batch of face images from a video
+def create_batch(video_path, device, batch_size = 16):
+	video_handle = cv2.VideoCapture(video_path)
+	video_length = video_handle.get(7)
+
+	# Pick random start_frame in the range of the video length in frames
+	start_frame = random.randint(0, video_length - batch_size)
+	# Grab a frame sequence
+	frames = opencv_helpers.loadFrameSequence(video_handle, start_frame, sequence_length = batch_size)
+	# Process the frames to retrieve only the faces, and construct the batch
+	batch = []
+	prev_face_pos = (0, 0)
+	for i, frame in enumerate(frames):
+		faces, face_positions = get_faces(frame)
+		if len(face_positions) == 1:
+			prev_face_pos = face_positions[0]
+			batch.append(faces[0])
+		else:
+			# ToDo: Multiple faces, choose closest one
+			raise Exception("Multiple faces detected.")
+	# # Rescale to <-1;1>
+	# batch = batch / 127.5 - 1.
+	if batch_size > 1:
+		batch = np.asarray(batch)
+	else:
+		batch = np.asarray(batch[0])
+
+	batch = faces_to_tensor(batch, device)
+	return batch
