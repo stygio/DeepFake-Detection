@@ -50,7 +50,7 @@ def test2():
 def test3():
 	print("TEST: Video with ONE face")
 	batch = create_batch(one_face_vp, device)
-	# print("TEST: Video with NO face")
-	# batch = create_batch(no_face_vp, device)
+	print("TEST: Video with NO face")
+	batch = create_batch(no_face_vp, device)
 	print("TEST: Video with TWO faces")
 	batch = create_batch(two_face_vp, device)

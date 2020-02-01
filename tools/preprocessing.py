@@ -32,7 +32,7 @@ def get_faces(img, isPath = False, resize_dim = (299, 299)):
 		# resize image
 		img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
 	rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-	print("Debug: Retrieved image shape: {}".format(np.shape(rgb_img)))
+	# print("Debug: Retrieved image shape: {}".format(np.shape(rgb_img)))
 	
 	# Acquire face_locations, which is a list of tuples with locations
 	# of bounding boxes specified as (top, right, bottom, left)
@@ -105,7 +105,7 @@ def get_faces(img, isPath = False, resize_dim = (299, 299)):
 # Reshape array of faces and create tensor
 def faces_to_tensor(faces, device):
 	faces_tensor = np.moveaxis(faces, -1, 1)
-	print("Debug: Tensor shape: {}".format(np.shape(faces_tensor)))
+	# print("Debug: Tensor shape: {}".format(np.shape(faces_tensor)))
 	faces_tensor = torch_from_numpy(faces_tensor).float().to(device)
 	
 	return faces_tensor
