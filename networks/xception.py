@@ -106,6 +106,8 @@ class Xception(nn.Module):
     """
     Xception optimized for the ImageNet dataset, as specified in
     https://arxiv.org/pdf/1610.02357.pdf
+
+    Base version with no FC layer at the end (to be inherited from)
     """
     def __init__(self):
         # Constructor
@@ -142,9 +144,10 @@ class Xception(nn.Module):
         self.conv4 = SeparableConv2d(1536,2048,3,1,1)
         self.bn4 = nn.BatchNorm2d(2048)
 
-        self.fc = nn.Linear(2048, 1000)
+        # Initialize weights
+        self.init_weights()
 
-        #------- init weights --------
+    def init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
@@ -152,7 +155,6 @@ class Xception(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
-        #-----------------------------
 
     def forward(self, x):
         x = self.conv1(x)
@@ -186,8 +188,27 @@ class Xception(nn.Module):
 
         x = F.adaptive_avg_pool2d(x, (1, 1))
         x = x.view(x.size(0), -1)
-        x = self.fc(x)
+        return x
 
+
+class PretrainedXception(Xception):
+    """
+    Xception network with same FC layer as in the pretrained model for loading weights
+    """
+    def __init__(self):
+        # Constructor
+        super(PretrainedXception, self).__init__()
+
+        # Adding an FC layer to match it to pretrained version     
+        self.fc = nn.Linear(2048, 1000)
+
+        self.init_weights()
+
+    def forward(self, x):
+        x = super().forward(x)
+
+        # Adding FC layer
+        x = self.fc(x)
         return x
 
 
@@ -199,25 +220,17 @@ class BinaryXception(Xception):
         # Constructor
         super(BinaryXception, self).__init__()
 
-        # Added for binary classification        
-        self.fc_classes = nn.Linear(1000, 1)
+        # Adding FC layer for binary classification & a sigmoid      
+        self.fc_binary = nn.Linear(2048, 1)
         self.sigmoid = nn.Sigmoid()
 
-        #------- init weights --------
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
-        #-----------------------------
+        self.init_weights()
 
     def forward(self, x):
         x = super().forward(x)
 
         # Resizing to desired output
-        x = self.fc_classes(x)
+        x = self.fc_binary(x)
         x = self.sigmoid(x)
 
         return x
@@ -231,7 +244,7 @@ def xception(pretrained = False, **kwargs):
     model = BinaryXception(**kwargs)
     if pretrained:
         # Create a model that matches the pretrained waits
-        pretrained_model = Xception()
+        pretrained_model = PretrainedXception()
         pretrained_model.load_state_dict(model_zoo.load_url(model_urls['xception']))
         pretrained_dict = pretrained_model.state_dict()
         model_dict = model.state_dict()

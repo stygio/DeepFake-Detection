@@ -136,7 +136,7 @@ def create_batch(video_path, device, batch_size = 16):
 			# ToDo: Multiple faces, choose closest one
 			raise ValueError("Multiple faces detected in {}".format(video_path))
 	
-	# Prepare the batch (Rescale to <-1;1>, transform into tensor)
+	# Prepare the batch (Rescale to <-1;1>, transform into <torch.tensor> object)
 	batch = np.asarray(batch)
 	batch = batch / 127.5 - 1.
 	batch = faces_to_tensor(batch, device)
