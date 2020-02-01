@@ -32,7 +32,7 @@ def get_faces(img, isPath = False, resize_dim = (299, 299)):
 		# resize image
 		img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
 	rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-	# print("Debug: Retrieved image shape: {}".format(np.shape(rgb_img)))
+	# print("DEBUG: Retrieved image shape: {}".format(np.shape(rgb_img)))
 	
 	# Acquire face_locations, which is a list of tuples with locations
 	# of bounding boxes specified as (top, right, bottom, left)
@@ -69,8 +69,8 @@ def get_faces(img, isPath = False, resize_dim = (299, 299)):
 		(img_height, img_width, _) = np.shape(img)
 		cropped_img = img[max(top, 0):min(bottom, img_height-1), max(left, 0):min(right, img_width-1)]
 
-		# print("Debug: crop_height: {}, crop_width: {}, crop_diff: {}".format(crop_height, crop_width, crop_diff))
-		# print("Debug: top: {}, bottom: {}, left: {}, right: {}".format(top, bottom, left, right))
+		# print("DEBUG: crop_height: {}, crop_width: {}, crop_diff: {}".format(crop_height, crop_width, crop_diff))
+		# print("DEBUG: top: {}, bottom: {}, left: {}, right: {}".format(top, bottom, left, right))
 
 		# Handle cases where the new box will extend beyond image dimensions, requiring padding
 		(crop_height, crop_width, _) = np.shape(cropped_img)
@@ -86,11 +86,11 @@ def get_faces(img, isPath = False, resize_dim = (299, 299)):
 		elif right > img_width-1:
 			padding = np.zeros((crop_height, right - (img_width-1), 3), dtype = "uint8")
 			cropped_img = cv2.hconcat([padding, cropped_img])
-		# print("Debug: Cropped image shape: {}".format(np.shape(cropped_img)))
+		# print("DEBUG: Cropped image shape: {}".format(np.shape(cropped_img)))
 		
 		# Resize
 		resized_img = cv2.resize(img, resize_dim, interpolation = cv2.INTER_AREA)
-		# print("Debug: Resized image shape: {}".format(np.shape(resized_img)))
+		# print("DEBUG: Resized image shape: {}".format(np.shape(resized_img)))
 		# show_test_img(resized_img)
 
 		faces.append(resized_img)
@@ -105,7 +105,7 @@ def get_faces(img, isPath = False, resize_dim = (299, 299)):
 # Reshape array of faces and create tensor
 def faces_to_tensor(faces, device):
 	faces_tensor = np.moveaxis(faces, -1, 1)
-	# print("Debug: Tensor shape: {}".format(np.shape(faces_tensor)))
+	# print("DEBUG: Tensor shape: {}".format(np.shape(faces_tensor)))
 	faces_tensor = torch_from_numpy(faces_tensor).float().to(device)
 	
 	return faces_tensor
@@ -123,7 +123,7 @@ def create_batch(video_path, device, batch_size = 16):
 	# Process the frames to retrieve only the faces, and construct the batch
 	batch = []
 	for i, frame in enumerate(frames):
-		# Retrieve detected faces and their positions. Throw an 
+		# Retrieve detected faces and their positions. Throw an <AssertionError> in case of no detected faces.
 		faces, face_positions = None, None
 		try:
 			faces, face_positions = get_faces(frame)
