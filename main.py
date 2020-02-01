@@ -9,14 +9,18 @@ import os
 import tools.miscellaneous as misc
 from tools.preprocessing import get_faces, faces_to_tensor, create_batch
 from tools.opencv_helpers import loadFrameSequence
-from networks.xception import xception
+from tools.network import train_fc_layer
+from models.xception import xception
 
 
 # real_img_dir = "C:\\Users\\Andrzej\\Pictures\\tempgarbage"
 real_img_dir = "E:\\FaceForensics_Dataset\\original_sequences\\c23\\images"
 fake_img_dir = "E:\\FaceForensics_Dataset\\manipulated_sequences\\DeepFakeDetection\\c23\\images"
-real_img_dirs = misc.get_random_directory(real_img_dir)
-fake_img_dirs = misc.get_random_directory(fake_img_dir)
+real_img_dirs = misc.get_random_file_path(real_img_dir)
+fake_img_dirs = misc.get_random_file_path(fake_img_dir)
+
+real_vid_dir = "E:\\FaceForensics_Dataset\\original_sequences\\c23\\videos"
+fake_vid_dir = "E:\\FaceForensics_Dataset\\manipulated_sequences\\DeepFakeDetection\\c23\\videos"
 
 one_face_vp = "E:\\FaceForensics_Dataset\\original_sequences\\c23\\videos\\000.mp4"
 no_face_vp = "C:\\Users\\Andrzej\\Videos\\MazeEscape\\Maze1.mp4"
@@ -41,7 +45,14 @@ def test2():
 	network = xception(pretrained = True).to(device)
 	network.zero_grad()
 	criterion = nn.BCELoss()
-	optimizer = optim.SGD(network.parameters(), lr=0.001, momentum=0.9)
+	optimizer = optim.SGD(network.fc_binary.parameters(), lr=0.001, momentum=0.9)
 	data = faces_to_tensor(test1(), device)
 	output = network(data)
-	return output
+	print("Network output: {}".format(output))
+	return network
+
+
+def test3():
+	train_fc_layer(real_vid_dir, fake_vid_dir, batch_size = 8)
+
+test3()

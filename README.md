@@ -4,7 +4,7 @@ Repository for work on my Master's Thesis project. The goal is to examine state-
 
 # Project Contents
 
-* networks/ - definitions for different types of pytorch networks to be tested
+* models/ - definitions for different types of pytorch models to be tested
 
 * tools/ - module of tools/functions created for the purpose of the project
 
