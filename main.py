@@ -18,7 +18,9 @@ fake_img_dir = "E:\\FaceForensics_Dataset\\manipulated_sequences\\DeepFakeDetect
 real_img_dirs = misc.get_random_directory(real_img_dir)
 fake_img_dirs = misc.get_random_directory(fake_img_dir)
 
-video_path = "E:\\FaceForensics_Dataset\\original_sequences\\c23\\videos\\000.mp4"
+one_face_vp = "E:\\FaceForensics_Dataset\\original_sequences\\c23\\videos\\000.mp4"
+no_face_vp = "C:\\Users\\Andrzej\\Videos\\MazeEscape\\Maze1.mp4"
+two_face_vp = "E:\\FaceForensics_Dataset\\original_sequences\\c23\\videos\\01__walking_and_outside_surprised.mp4"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -46,5 +48,9 @@ def test2():
 
 
 def test3():
-	batch = create_batch(video_path, device)
-	return batch
+	print("TEST: Video with ONE face")
+	batch = create_batch(one_face_vp, device)
+	# print("TEST: Video with NO face")
+	# batch = create_batch(no_face_vp, device)
+	print("TEST: Video with TWO faces")
+	batch = create_batch(two_face_vp, device)

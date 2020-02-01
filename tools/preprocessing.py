@@ -96,9 +96,8 @@ def get_faces(img, isPath = False, resize_dim = (299, 299)):
 		faces.append(resized_img)
 		face_positions.append((face_Y, face_X))
 
-	# Throw an exception if <faces> is an empty list:
-	if not faces:
-		raise ValueError("No faces detected.")
+	# Throw an AssertionError if <faces> is an empty list:
+	assert faces, "No faces detected."
 
 	return np.array(faces), face_positions
 
@@ -108,6 +107,7 @@ def faces_to_tensor(faces, device):
 	faces_tensor = np.moveaxis(faces, -1, 1)
 	print("Debug: Tensor shape: {}".format(np.shape(faces_tensor)))
 	faces_tensor = torch_from_numpy(faces_tensor).float().to(device)
+	
 	return faces_tensor
 
 
@@ -122,21 +122,23 @@ def create_batch(video_path, device, batch_size = 16):
 	frames = opencv_helpers.loadFrameSequence(video_handle, start_frame, sequence_length = batch_size)
 	# Process the frames to retrieve only the faces, and construct the batch
 	batch = []
-	prev_face_pos = (0, 0)
 	for i, frame in enumerate(frames):
-		faces, face_positions = get_faces(frame)
+		# Retrieve detected faces and their positions. Throw an 
+		faces, face_positions = None, None
+		try:
+			faces, face_positions = get_faces(frame)
+		except AssertionError:
+			raise AttributeError("No faces detected in {}".format(video_path))
+		# Check whether 1 face was detected. If more - throw a ValueError
 		if len(face_positions) == 1:
-			prev_face_pos = face_positions[0]
 			batch.append(faces[0])
 		else:
 			# ToDo: Multiple faces, choose closest one
-			raise Exception("Multiple faces detected.")
-	# # Rescale to <-1;1>
-	# batch = batch / 127.5 - 1.
-	if batch_size > 1:
-		batch = np.asarray(batch)
-	else:
-		batch = np.asarray(batch[0])
-
+			raise ValueError("Multiple faces detected in {}".format(video_path))
+	
+	# Prepare the batch (Rescale to <-1;1>, transform into tensor)
+	batch = np.asarray(batch)
+	batch = batch / 127.5 - 1.
 	batch = faces_to_tensor(batch, device)
+	
 	return batch
