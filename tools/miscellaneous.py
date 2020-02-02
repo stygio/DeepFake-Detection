@@ -26,15 +26,21 @@ def timestamp():
 	return timestamp_string
 
 
-# Return an infinite generator of shuffled folders in <directory>
-def get_random_file_path(directory):
-	dir_list = os.listdir(directory)
+"""
+Return an infinite generator of random files from provided directories
+	directories - list of directories with samples
+"""
+def get_random_file_path(directories):
 	while True:
-		random.shuffle(dir_list)
-		for name in dir_list:
-			chosen_file = os.path.join(directory, name)
-			if os.path.isfile(chosen_file):
-				yield chosen_file
+		# Choose a random directory from the list of sample directories
+		chosen_dir = random.choice(directories)
+		dir_contents = os.listdir(chosen_dir)
+		# Choose a random file from the directory
+		chosen_file = random.choice(dir_contents)
+		file_path = os.path.join(chosen_dir, chosen_file)
+		if os.path.isfile(file_path):
+			yield file_path
+
 
 """
 Put a file in a folder in its current directory, 

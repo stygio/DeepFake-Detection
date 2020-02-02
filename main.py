@@ -22,6 +22,14 @@ fake_img_dirs = misc.get_random_file_path(fake_img_dir)
 real_vid_dir = "E:\\FaceForensics_Dataset\\original_sequences\\c23\\videos"
 fake_vid_dir = "E:\\FaceForensics_Dataset\\manipulated_sequences\\DeepFakeDetection\\c23\\videos"
 
+real_vid_dirs = [	"E:\\FaceForensics_Dataset\\original_sequences\\c23\\videos"]
+fake_vid_dirs = [	"E:\\FaceForensics_Dataset\\manipulated_sequences\\DeepFakeDetection\\c23\\videos",
+					"E:\\FaceForensics_Dataset\\manipulated_sequences\\Deepfakes\\c23\\videos",
+					"E:\\FaceForensics_Dataset\\manipulated_sequences\\Face2Face\\c23\\videos",
+					"E:\\FaceForensics_Dataset\\manipulated_sequences\\FaceSwap\\c23\\videos",
+					"E:\\FaceForensics_Dataset\\manipulated_sequences\\NeuralTextures\\c23\\videos",
+]
+
 one_face_vp = "E:\\FaceForensics_Dataset\\original_sequences\\c23\\videos\\000.mp4"
 no_face_vp = "C:\\Users\\Andrzej\\Videos\\MazeEscape\\Maze1.mp4"
 two_face_vp = "E:\\FaceForensics_Dataset\\original_sequences\\c23\\videos\\01__walking_and_outside_surprised.mp4"
@@ -53,6 +61,6 @@ def test2():
 
 
 def test3():
-	train_fc_layer(real_vid_dir, fake_vid_dir, epochs = 5, batch_size = 20)
+	train_fc_layer(real_vid_dirs, fake_vid_dirs, epochs = 10, batch_size = 20)
 
 test3()

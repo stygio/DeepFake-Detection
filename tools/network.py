@@ -44,16 +44,16 @@ def get_batch(video_path_generator, device, batch_size):
 
 """
 Function for training the final fully connected layer of chosen model.
-	real_video_dir - directory with real training samples (videos) 
-	fake_video_dir - directory with fake training samples (videos)
-	epochs         - # of epochs to train the model
-	batch_size     - size of training batches (training will use both a real and fake batch of this size)
-	model          - chosen model to be trained
+	real_video_dirs - list of directories with real training samples (videos) 
+	fake_video_dirs - list of directories with fake training samples (videos)
+	epochs          - # of epochs to train the model
+	batch_size      - size of training batches (training will use both a real and fake batch of this size)
+	model           - chosen model to be trained
 """
-def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, model = "Xception"):
+def train_fc_layer(real_video_dirs, fake_video_dirs, epochs = 1, batch_size = 16, model = "Xception"):
 	# Generators for random file path in real/fake video directories
-	real_video_paths = misc.get_random_file_path(real_video_dir)
-	fake_video_paths = misc.get_random_file_path(fake_video_dir)
+	real_video_paths = misc.get_random_file_path(real_video_dirs)
+	fake_video_paths = misc.get_random_file_path(fake_video_dirs)
 	# Pytorch device
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -80,7 +80,7 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 	log_file = misc.create_log(model_type = model, header_string = log_header)
 
 	for epoch in range(epochs):
-		iterations = 2
+		iterations = 500
 		for iteration in range(iterations):
 			network.zero_grad()
 			torch.cuda.empty_cache()
