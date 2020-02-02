@@ -4,4 +4,4 @@ resize_script.py
 unit_tests/media_resources/*.mp4
 testing_script.py
 *.pt
-outputs/logs/*.txt
+outputs/logs/*.csv
