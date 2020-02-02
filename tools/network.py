@@ -33,6 +33,11 @@ def get_batch(video_path_generator, device, batch_size):
 			print("DEBUG: {}".format(Error))
 			# Move the file to a special folder for videos with multiple faces
 			misc.put_file_in_folder(file_path = video_path, folder = "multiple_faces")
+		except AssertionError as Error:
+			# Video length error
+			print("DEBUG: {}".format(Error))
+			# Move the file to a special folder for short/corrupt videos
+			misc.put_file_in_folder(file_path = video_path, folder = "bad_samples")
 
 	return batch, video_path
 
@@ -71,7 +76,7 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 	fake_labels = fake_labels.view(-1,1)
 	
 
-	log_header = "Epoch;Iteration;Acc(R);MeanOut(R);Loss(R);Acc(F);MeanOut(F);Loss(F);Acc(Overall);\n"
+	log_header = "Epoch,Iteration,Acc(R),MeanOut(R),Loss(R),Acc(F),MeanOut(F),Loss(F),Acc(Overall),\n"
 	log_file = misc.create_log(model_type = model, header_string = log_header)
 
 	for epoch in range(epochs):
@@ -117,7 +122,7 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 			print(output_string)
 
 			# Write iteration results to log file
-			log_string = "{};{};{:.2f};{:.2f};{:.2f};{:.2f};{:.2f};{:.2f};{:.2f};\n".format(
+			log_string = "{},{},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},\n".format(
 				epoch, iteration, acc_real, real_avg, err_real.item(), acc_fake, fake_avg, err_fake.item(), (acc_real+acc_fake)/2)
 			misc.add_to_log(log_file = log_file, log_string = log_string)
 

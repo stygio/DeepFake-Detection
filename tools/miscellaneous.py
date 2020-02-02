@@ -72,7 +72,7 @@ Creates a log file and returns the path to it
 """
 def create_log(model_type, header_string):
 	log_dir = "outputs/logs/"
-	filename = model_type + timestamp() + ".txt"
+	filename = model_type + timestamp() + ".csv"
 	filename = os.path.join(log_dir, filename)
 	f = open(filename, "w+")
 	f.write(header_string)
