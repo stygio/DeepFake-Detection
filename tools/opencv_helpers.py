@@ -1,16 +1,8 @@
 import cv2
-import time
 import numpy as np
 
 frame_rate = 30
 segment_length = 1 * frame_rate		# Segment length is the number of seconds
-
-
-def timestamp(frame_nr):
-	seconds = frame_nr / frame_rate
-	milliseconds = int((frame_nr % frame_rate) / frame_rate * 1000)
-	timestamp_string = time.strftime('%H$%M$%S', time.gmtime(seconds)) + "${0}".format(milliseconds)
-	return timestamp_string
 
 
 def getFrame(video_handle):

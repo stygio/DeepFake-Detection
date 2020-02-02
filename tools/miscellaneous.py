@@ -1,5 +1,7 @@
 import os
 import random
+from datetime import datetime
+from torch import save
 
 # # Return a generator of random real/fake image directories
 # def get_random_directory(real_or_fake):
@@ -15,6 +17,13 @@ import random
 # 			yield os.path.join(fake_img_dir, name)
 # 	else:
 # 		raise Exception("Invalid value passed with <real_or_fake>")
+
+
+# Return a string with current timestamp
+def timestamp():
+	now = datetime.now()
+	timestamp_string = now.strftime("_date$%m%d%Y_time$%H%M%S")
+	return timestamp_string
 
 
 # Return an infinite generator of shuffled folders in <directory>
@@ -40,3 +49,12 @@ def put_file_in_folder(file_path, folder):
 		os.replace(file_path, new_path)
 	except FileNotFoundError:
 		raise FileNotFoundError("File specified by the path {} doesn't exist.".format(file_path))
+
+
+# Save a pytorch model
+def save_network(network_state_dict, model_type):
+	model_dir = "models/saved_models/"
+	filename = model_type + timestamp() + ".pt"
+	filename = os.path.join(model_dir, filename)
+	print("Saving network as '{}'".format(filename))
+	save(network_state_dict, filename)

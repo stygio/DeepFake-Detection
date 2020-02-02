@@ -12,8 +12,8 @@ Repository for work on my Master's Thesis project. The goal is to examine state-
 
 # ToDo:
 
-* Multiple faces in a video
+* Validation run
 
-* Handling frames without detected faces
+* Training entire network, not just FC layer
 
-* Create a batch from a video
+* Handling frames without detected faces more intelligently?

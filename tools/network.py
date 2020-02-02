@@ -12,10 +12,6 @@ from tools.preprocessing import create_batch
 from models.xception import xception
 
 
-def save_model():
-	pass
-
-
 """
 Function to retrieve a batch in tensor form
 	video_path_generator - generator object which returns paths to video samples
@@ -75,7 +71,7 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 	fake_labels = fake_labels.view(-1,1)
 	
 	for epoch in range(epochs):
-		iterations = 1000
+		iterations = 2
 		for iteration in range(iterations):
 			network.zero_grad()
 			torch.cuda.empty_cache()
@@ -114,3 +110,6 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 			output_string = ">> Epoch [{}/{}] Iteration [{}/{}] REAL - Acc: {:05.2f}%, MeanOut: {:3.2}, Loss: {:3.2f} | FAKE - Acc: {:05.2f}%, MeanOut: {:3.2f}, Loss: {:3.2f} | Overall Accuracy: {:05.2f}%".format(
 				epoch, epochs-1, iteration, iterations-1, acc_real, real_avg, err_real.item(), acc_fake, fake_avg, err_fake.item(), (acc_real+acc_fake)/2)
 			print(output_string)
+
+		# Save the network after every epoch
+		misc.save_network(network_state_dict = network.state_dict(), model_type = model)
