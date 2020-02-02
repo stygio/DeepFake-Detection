@@ -16,6 +16,39 @@ def save_model():
 	pass
 
 
+"""
+Function to retrieve a batch in tensor form
+	video_path_generator - generator object which returns paths to video samples
+	device               - PyTorch device
+	batch_size           - size of returned batch (# of consecutive frames from the video)
+"""
+def get_batch(video_path_generator, device, batch_size):
+	# While there is no batch, try to create one
+	batch, video_path = None, None
+	while not torch.is_tensor(batch):
+		try:
+			video_path = next(video_path_generator)
+			batch = create_batch(video_path = video_path, device = device, batch_size = batch_size)
+		except AttributeError as Error:
+			# No faces error
+			print("DEBUG: {}".format(Error))
+		except ValueError as Error:
+			# Multiple faces error
+			print("DEBUG: {}".format(Error))
+			# Move the file to a special folder for videos with multiple faces
+			misc.put_file_in_folder(file_path = video_path, folder = "multiple_faces")
+
+	return batch, video_path
+
+
+"""
+Function for training the final fully connected layer of chosen model.
+	real_video_dir - directory with real training samples (videos) 
+	fake_video_dir - directory with fake training samples (videos)
+	epochs         - # of epochs to train the model
+	batch_size     - size of training batches (training will use both a real and fake batch of this size)
+	model          - chosen model to be trained
+"""
 def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, model = "Xception"):
 	# Generators for random file path in real/fake video directories
 	real_video_paths = misc.get_random_file_path(real_video_dir)
@@ -44,24 +77,12 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 	for epoch in range(epochs):
 		iterations = 1000
 		for iteration in range(iterations):
-			real_batch, fake_batch = None, None
 			network.zero_grad()
-
-			# While there is no real_batch, try to create one
-			while not torch.is_tensor(real_batch):
-				real_video = None
-				try:
-					real_video = next(real_video_paths)
-					real_batch = create_batch(video_path = real_video, device = device, batch_size = batch_size)
-				except AttributeError as Error:
-					# No faces error
-					print("DEBUG: {}".format(Error))
-				except ValueError as Error:
-					# Multiple faces error
-					print("DEBUG: {}".format(Error))
-					# ToDo: Move the file to a special folder for videos with multiple faces
+			torch.cuda.empty_cache()
 
 			# Training with real data
+			real_batch, chosen_video = get_batch(video_path_generator = real_video_paths, device = device, batch_size = batch_size)
+			# print("DEBUG: Retrieved REAL batch from '{}'".format(chosen_video))
 			output_real_samples = network(real_batch.detach())
 			# Delete the batch to conserve memory
 			del real_batch
@@ -73,21 +94,9 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 			# Calculating accuracy for real samples
 			acc_real = np.sum(output_real_samples.cpu().detach().numpy() >= 0.5) / batch_size * 100
 
-			# While there is no fake_batch, try to create one
-			while not torch.is_tensor(fake_batch):
-				fake_video = None
-				try:
-					fake_video = next(fake_video_paths)
-					fake_batch = create_batch(video_path = fake_video, device = device, batch_size = batch_size)
-				except AttributeError as Error:
-					# No faces error
-					print("DEBUG: {}".format(Error))
-				except ValueError as Error:
-					# Multiple faces error
-					print("DEBUG: {}".format(Error))
-					# ToDo: Move the file to a special folder for videos with multiple faces
-			
 			# Training with fake data
+			fake_batch, chosen_video = get_batch(video_path_generator = fake_video_paths, device = device, batch_size = batch_size)
+			# print("DEBUG: Retrieved FAKE batch from '{}'".format(chosen_video))
 			output_fake_samples = network(fake_batch.detach())
 			# Delete the batch to conserve memory
 			del fake_batch
@@ -99,9 +108,9 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 			# Calculating accuracy for fake samples
 			acc_fake = np.sum(output_fake_samples.cpu().detach().numpy() < 0.5) / batch_size * 100
 			
-			# Optimizer step
+			# Optimizer step applying gradients from real and fake batch results
 			optimizer.step()
 
-			output_string = "Epoch [{}/{}] Iteration [{}/{}] Loss(Real): {:3.2f}, Loss(Fake): {:3.2f}, MeanOut(Real): {:3.2f}, MeanOut(Fake): {:3.2f}, Acc(Real): {}%, Acc(Fake): {}%".format(
-				epoch, epochs-1, iteration, iterations-1, err_real.item(), err_fake.item(), real_avg, fake_avg, acc_real, acc_fake)
+			output_string = ">> Epoch [{}/{}] Iteration [{}/{}] REAL - Acc: {:05.2f}%, MeanOut: {:3.2}, Loss: {:3.2f} | FAKE - Acc: {:05.2f}%, MeanOut: {:3.2f}, Loss: {:3.2f} | Overall Accuracy: {:05.2f}%".format(
+				epoch, epochs-1, iteration, iterations-1, acc_real, real_avg, err_real.item(), acc_fake, fake_avg, err_fake.item(), (acc_real+acc_fake)/2)
 			print(output_string)

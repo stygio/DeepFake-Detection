@@ -122,6 +122,8 @@ def create_batch(video_path, device, batch_size = 16):
 	start_frame = random.randint(0, video_length - batch_size)
 	# Grab a frame sequence
 	frames = opencv_helpers.loadFrameSequence(video_handle, start_frame, sequence_length = batch_size)
+	video_handle.release()
+	cv2.destroyAllWindows()
 	# Process the frames to retrieve only the faces, and construct the batch
 	batch = []
 	for i, frame in enumerate(frames):

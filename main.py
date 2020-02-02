@@ -53,6 +53,6 @@ def test2():
 
 
 def test3():
-	train_fc_layer(real_vid_dir, fake_vid_dir, epochs = 10, batch_size = 16)
+	train_fc_layer(real_vid_dir, fake_vid_dir, epochs = 10, batch_size = 20)
 
 test3()
