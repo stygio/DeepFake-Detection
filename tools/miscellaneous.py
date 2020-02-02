@@ -23,8 +23,9 @@ def get_random_file_path(directory):
 	while True:
 		random.shuffle(dir_list)
 		for name in dir_list:
-			# print("Chosen directory: {}".format(name))
-			yield os.path.join(directory, name)
+			chosen_file = os.path.join(directory, name)
+			if os.path.isfile(chosen_file):
+				yield chosen_file
 
 """
 Put a file specificied by <file_path> in a <folder> in current directory, 
@@ -35,7 +36,7 @@ def put_file_in_folder(file_path, folder):
 	new_path = os.path.join(split_path[0], folder, split_path[1])
 	os.makedirs(os.path.dirname(new_path), exist_ok=True)
 	try:
-		print("Moving {} to {}".format(split_path[1], "{}/{}".format(folder, split_path[1])))
+		print("DEBUG: Moving '{}' to '{}'".format(split_path[1], "{}/{}".format(folder, split_path[1])))
 		os.replace(file_path, new_path)
 	except FileNotFoundError:
 		raise FileNotFoundError("File specified by the path {} doesn't exist.".format(file_path))
