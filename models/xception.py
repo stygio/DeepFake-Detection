@@ -156,6 +156,14 @@ class Xception(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
+    def freeze_layers(self):
+        for param in self.parameters():
+            param.requires_grad = False
+
+    def unfreeze_layers(self):
+        for param in self.parameters():
+            param.requires_grad = True
+
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
@@ -226,6 +234,10 @@ class BinaryXception(Xception):
 
         self.init_weights()
 
+    def unfreeze_fc_layer(self):
+        for param in self.fc_binary.parameters():
+            param.requires_grad = True
+
     def forward(self, x):
         x = super().forward(x)
 
@@ -240,7 +252,6 @@ def xception(pretrained = False, **kwargs):
     """
     Construct Xception.
     """
-
     model = BinaryXception(**kwargs)
     if pretrained:
         # Create a model that matches the pretrained waits

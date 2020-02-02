@@ -20,7 +20,8 @@ import random
 # Return a generator of shuffled folders in <directory>
 def get_random_file_path(directory):
 	dir_list = os.listdir(directory)
-	random.shuffle(dir_list)
-	for name in dir_list:
-		print("Chosen directory: {}".format(name))
-		yield os.path.join(directory, name)
+	while True:
+		random.shuffle(dir_list)
+		for name in dir_list:
+			print("Chosen directory: {}".format(name))
+			yield os.path.join(directory, name)

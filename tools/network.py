@@ -29,8 +29,12 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 		network = xception(pretrained = True).to(device)
 	else:
 		raise Exception("Invalid model chosen.")
+	# Set requires_grad to False for all layers except final FC layer
+	network.freeze_layers()
+	network.unfreeze_fc_layer()
+	# Loss function and optimizer
 	criterion = nn.BCELoss()
-	optimizer = optim.SGD(network.fc_binary.parameters(), lr=0.001, momentum=0.9)
+	optimizer = optim.SGD(network.fc_binary.parameters(), lr = 0.1, momentum = 0.9)
 	# Label tensors
 	real_labels = torch.full((batch_size, ), fill_value = 1, dtype = torch.float, device = device)
 	real_labels = real_labels.view(-1,1)
@@ -38,7 +42,7 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 	fake_labels = fake_labels.view(-1,1)
 	
 	for epoch in range(epochs):
-		iterations = 3
+		iterations = 1000
 		for iteration in range(iterations):
 			real_batch, fake_batch = None, None
 			network.zero_grad()
@@ -59,9 +63,15 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 
 			# Training with real data
 			output_real_samples = network(real_batch.detach())
+			# Delete the batch to conserve memory
+			del real_batch
+			torch.cuda.empty_cache()
+			# Compute loss and do backpropagation
 			err_real = criterion(output_real_samples, real_labels)
 			err_real.backward()
-			D_real = output_real_samples.mean().item()
+			real_avg = output_real_samples.mean().item()
+			# Calculating accuracy for real samples
+			acc_real = np.sum(output_real_samples.cpu().detach().numpy() >= 0.5) / batch_size * 100
 
 			# While there is no fake_batch, try to create one
 			while not torch.is_tensor(fake_batch):
@@ -79,18 +89,19 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 			
 			# Training with fake data
 			output_fake_samples = network(fake_batch.detach())
+			# Delete the batch to conserve memory
+			del fake_batch
+			torch.cuda.empty_cache()
+			# Compute loss and do backpropagation
 			err_fake = criterion(output_fake_samples, fake_labels)
 			err_fake.backward()
-			D_fake = output_fake_samples.mean().item()
+			fake_avg= output_fake_samples.mean().item()
+			# Calculating accuracy for fake samples
+			acc_fake = np.sum(output_fake_samples.cpu().detach().numpy() < 0.5) / batch_size * 100
 			
 			# Optimizer step
 			optimizer.step()
 
-			# Calculating accuracy for real samples
-			acc_real = np.sum(output_real_samples.cpu().detach().numpy() >= 0.5) / batch_size * 100
-			# Calculating accuracy for fake samples
-			acc_fake = np.sum(output_fake_samples.cpu().detach().numpy() < 0.5) / batch_size * 100
-
-			output_string = "Epoch [{}/{}] Iteration [{}/{}] Loss(Real): {}, Loss(Fake): {}, D_real: {}, D_fake: {}, Acc(Real): {}%, Acc(Fake): {}%".format(
-				epoch, epochs-1, iteration, iterations-1, err_real.item(), err_fake.item(), D_real, D_fake, acc_real, acc_fake)
+			output_string = "Epoch [{}/{}] Iteration [{}/{}] Loss(Real): {:3.2f}, Loss(Fake): {:3.2f}, MeanOut(Real): {:3.2f}, MeanOut(Fake): {:3.2f}, Acc(Real): {}%, Acc(Fake): {}%".format(
+				epoch, epochs-1, iteration, iterations-1, err_real.item(), err_fake.item(), real_avg, fake_avg, acc_real, acc_fake)
 			print(output_string)

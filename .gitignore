@@ -2,3 +2,4 @@
 extract_compressed_videos.py
 resize_script.py
 unit_tests/media_resources/*.mp4
+testing_script.py

@@ -7,6 +7,7 @@ import cv2
 import random
 import face_recognition
 from torch import from_numpy as torch_from_numpy
+import torch
 
 from tools import opencv_helpers
 
@@ -106,8 +107,9 @@ def get_faces(img, isPath = False, resize_dim = (299, 299)):
 def faces_to_tensor(faces, device):
 	faces_tensor = np.moveaxis(faces, -1, 1)
 	# print("DEBUG: Tensor shape: {}".format(np.shape(faces_tensor)))
-	faces_tensor = torch_from_numpy(faces_tensor).float().to(device)
-	
+	# faces_tensor = torch_from_numpy(faces_tensor).float().to(device)
+	faces_tensor = torch.tensor(faces_tensor, device = device, requires_grad = False, dtype = torch.float)
+
 	return faces_tensor
 
 
