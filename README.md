@@ -10,6 +10,8 @@ Repository for work on my Master's Thesis project. The goal is to examine state-
 
 * unit_tests/ - tests for various implemented functions, which can be run after navigating to the directory
 
+* outputs/ - various outputs such as logs, graphs, etc.
+
 # ToDo:
 
 * Validation run

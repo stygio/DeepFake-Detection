@@ -37,8 +37,9 @@ def get_random_file_path(directory):
 				yield chosen_file
 
 """
-Put a file specificied by <file_path> in a <folder> in current directory, 
-which is created if it doesn't exist yet 
+Put a file in a folder in its current directory, 
+	file_path - current path to the file
+	folder    - target folder for the file, which is created if it doesn't exist yet
 """
 def put_file_in_folder(file_path, folder):
 	split_path = os.path.split(file_path)
@@ -51,10 +52,41 @@ def put_file_in_folder(file_path, folder):
 		raise FileNotFoundError("File specified by the path {} doesn't exist.".format(file_path))
 
 
-# Save a pytorch model
+"""
+Save a PyTorch network to a file in models/saved_models/
+	network_state_dict - state dict of the network to be saved
+	model_type         - model type name
+"""
 def save_network(network_state_dict, model_type):
 	model_dir = "models/saved_models/"
 	filename = model_type + timestamp() + ".pt"
 	filename = os.path.join(model_dir, filename)
 	print("Saving network as '{}'".format(filename))
 	save(network_state_dict, filename)
+
+
+"""
+Creates a log file and returns the path to it
+	model_type    - model type name
+	header_string - string which will be at the top of the log file
+"""
+def create_log(model_type, header_string):
+	log_dir = "outputs/logs/"
+	filename = model_type + timestamp() + ".txt"
+	filename = os.path.join(log_dir, filename)
+	f = open(filename, "w+")
+	f.write(header_string)
+	f.close()
+
+	return filename
+
+
+"""
+Adds a string to the specified log
+	log_file   - path to log file
+	log_string - string to be appended to the log
+"""
+def add_to_log(log_file, log_string):
+	f = open(log_file, "a")
+	f.write(log_string)
+	f.close()

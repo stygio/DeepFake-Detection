@@ -70,6 +70,10 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 	fake_labels = torch.full((batch_size, ), fill_value = 0, dtype = torch.float, device = device)
 	fake_labels = fake_labels.view(-1,1)
 	
+
+	log_header = "Epoch;Iteration;Acc(R);MeanOut(R);Loss(R);Acc(F);MeanOut(F);Loss(F);Acc(Overall);\n"
+	log_file = misc.create_log(model_type = model, header_string = log_header)
+
 	for epoch in range(epochs):
 		iterations = 2
 		for iteration in range(iterations):
@@ -107,9 +111,15 @@ def train_fc_layer(real_video_dir, fake_video_dir, epochs = 1, batch_size = 16, 
 			# Optimizer step applying gradients from real and fake batch results
 			optimizer.step()
 
+			# Write iterations results to console
 			output_string = ">> Epoch [{}/{}] Iteration [{}/{}] REAL - Acc: {:05.2f}%, MeanOut: {:3.2}, Loss: {:3.2f} | FAKE - Acc: {:05.2f}%, MeanOut: {:3.2f}, Loss: {:3.2f} | Overall Accuracy: {:05.2f}%".format(
 				epoch, epochs-1, iteration, iterations-1, acc_real, real_avg, err_real.item(), acc_fake, fake_avg, err_fake.item(), (acc_real+acc_fake)/2)
 			print(output_string)
+
+			# Write iteration results to log file
+			log_string = "{};{};{:.2f};{:.2f};{:.2f};{:.2f};{:.2f};{:.2f};{:.2f};\n".format(
+				epoch, iteration, acc_real, real_avg, err_real.item(), acc_fake, fake_avg, err_fake.item(), (acc_real+acc_fake)/2)
+			misc.add_to_log(log_file = log_file, log_string = log_string)
 
 		# Save the network after every epoch
 		misc.save_network(network_state_dict = network.state_dict(), model_type = model)
