@@ -68,7 +68,7 @@ def train_fc_layer(real_video_dirs, fake_video_dirs, epochs = 1, batch_size = 16
 	network.unfreeze_fc_layer()
 	# Loss function and optimizer
 	criterion = nn.BCELoss()
-	optimizer = optim.SGD(network.fc_binary.parameters(), lr = 0.1, momentum = 0.9)
+	optimizer = optim.SGD(network.fc_binary.parameters(), lr = 0.01, momentum = 0.9)
 	# Label tensors
 	real_labels = torch.full((batch_size, ), fill_value = 1, dtype = torch.float, device = device)
 	real_labels = real_labels.view(-1,1)

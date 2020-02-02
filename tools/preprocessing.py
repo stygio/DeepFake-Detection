@@ -117,7 +117,13 @@ def faces_to_tensor(faces, device):
 def create_batch(video_path, device, batch_size = 16):
 	video_handle = cv2.VideoCapture(video_path)
 	video_length = video_handle.get(7)
-	assert video_length > batch_size, "File '{}' has a video length shorter than the batch_size.".format(video_path)
+	try:
+		assert video_length > batch_size, "File '{}' has a video length shorter than the batch_size.".format(video_path)
+	except AssertionError:
+		# Release the video file and re-raise the exception
+		video_handle.release()
+		cv2.destroyAllWindows()
+		raise
 
 	# Pick random start_frame in the range of the video length in frames
 	start_frame = random.randint(0, video_length - batch_size)
