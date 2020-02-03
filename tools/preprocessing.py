@@ -3,13 +3,14 @@ Library of functions for image preprocessing
 """
 
 import numpy as np
-import cv2
 import random
+import cv2
+from PIL import Image
 import face_recognition
-from torch import from_numpy as torch_from_numpy
 import torch
 
 from tools import opencv_helpers
+from models import transform
 
 crop_factor = 1.2
 
@@ -21,7 +22,7 @@ def show_test_img(test_img):
 
 
 # Image preprocessing: face detection, cropping, resizing
-def get_faces(img, isPath = False, resize_dim = (299, 299)):
+def get_faces(img, isPath = False):
 	# Load image and resize if it's too big (otherwise we run into an out-of-memory error with CUDA)
 	if isPath:
 		img = cv2.imread(img)
@@ -89,32 +90,30 @@ def get_faces(img, isPath = False, resize_dim = (299, 299)):
 			cropped_img = cv2.hconcat([padding, cropped_img])
 		# print("DEBUG: Cropped image shape: {}".format(np.shape(cropped_img)))
 		
-		# Resize
-		resized_img = cv2.resize(cropped_img, resize_dim, interpolation = cv2.INTER_AREA)
-		# print("DEBUG: Resized image shape: {}".format(np.shape(resized_img)))
-		# show_test_img(resized_img)
-
-		faces.append(resized_img)
+		# Append transformed face and its position in the image
+		faces.append(cropped_img)
 		face_positions.append((face_Y, face_X))
 
 	# Throw an AssertionError if <faces> is an empty list:
 	assert faces, "No faces detected."
 
-	return np.array(faces), face_positions
+	return faces, face_positions
 
 
-# Reshape array of faces and create tensor
+# Reshape numpy array of faces and create tensor
 def faces_to_tensor(faces, device):
-	faces_tensor = np.moveaxis(faces, -1, 1)
+	# faces_tensor = np.moveaxis(faces, -1, 1)
 	# print("DEBUG: Tensor shape: {}".format(np.shape(faces_tensor)))
-	# faces_tensor = torch_from_numpy(faces_tensor).float().to(device)
-	faces_tensor = torch.tensor(faces_tensor, device = device, requires_grad = False, dtype = torch.float)
+	faces_tensor = torch.from_numpy(faces_tensor).float().to(device)
+	faces_tensor = torch.tensor(faces, device = device, requires_grad = False, dtype = torch.float)
 
 	return faces_tensor
 
 
 # Create a batch of face images from a video
-def create_batch(video_path, device, batch_size = 16):
+def create_batch(video_path, model_type, device, batch_size = 16):
+	tensor_transform = transform.model_transforms[model_type]
+
 	video_handle = cv2.VideoCapture(video_path)
 	video_length = video_handle.get(7)
 	try:
@@ -142,14 +141,13 @@ def create_batch(video_path, device, batch_size = 16):
 			raise AttributeError("No faces detected in {}".format(video_path))
 		# Check whether 1 face was detected. If more - throw a ValueError
 		if len(face_positions) == 1:
-			batch.append(faces[0])
+			tensor_img = tensor_transform(Image.fromarray(faces[0]))
+			batch.append(tensor_img)
 		else:
 			# ToDo: Multiple faces, choose closest one
 			raise ValueError("Multiple faces detected in {}".format(video_path))
-	
-	# Prepare the batch (Rescale to <-1;1>, transform into <torch.tensor> object)
-	batch = np.asarray(batch)
-	batch = batch / 127.5 - 1.
-	batch = faces_to_tensor(batch, device)
+
+	# Stack list of tensors into a single tensor on device
+	batch = torch.stack(batch).to(device)
 	
 	return batch

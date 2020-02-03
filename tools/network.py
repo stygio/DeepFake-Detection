@@ -18,13 +18,13 @@ Function to retrieve a batch in tensor form
 	device               - PyTorch device
 	batch_size           - size of returned batch (# of consecutive frames from the video)
 """
-def get_batch(video_path_generator, device, batch_size):
+def get_batch(video_path_generator, model_type, device, batch_size):
 	# While there is no batch, try to create one
 	batch, video_path = None, None
 	while not torch.is_tensor(batch):
 		try:
 			video_path = next(video_path_generator)
-			batch = create_batch(video_path = video_path, device = device, batch_size = batch_size)
+			batch = create_batch(video_path = video_path, model_type = model_type, device = device, batch_size = batch_size)
 		except AttributeError as Error:
 			# No faces error
 			print("DEBUG: {}".format(Error))
@@ -69,7 +69,7 @@ def train_fc_layer(real_video_dirs, fake_video_dirs, epochs = 1, batch_size = 16
 	# Loss function and optimizer
 	criterion = nn.BCELoss()
 	# criterion = nn.BCEWithLogitsLoss()
-	optimizer = optim.SGD(network.fc_binary.parameters(), lr = 0.01, momentum = 0.5)
+	optimizer = optim.SGD(network.fc_binary.parameters(), lr = 0.01, momentum = 0.9)
 	# Label tensors
 	real_labels = torch.full((batch_size, ), fill_value = 1, dtype = torch.float, device = device)
 	real_labels = real_labels.view(-1,1)
@@ -87,7 +87,7 @@ def train_fc_layer(real_video_dirs, fake_video_dirs, epochs = 1, batch_size = 16
 			torch.cuda.empty_cache()
 
 			# Training with real data
-			real_batch, chosen_video = get_batch(video_path_generator = real_video_paths, device = device, batch_size = batch_size)
+			real_batch, chosen_video = get_batch(video_path_generator = real_video_paths, model_type = model, device = device, batch_size = batch_size)
 			# print("DEBUG: Retrieved REAL batch from '{}'".format(chosen_video))
 			output_real_samples = network(real_batch.detach())
 			# Delete the batch to conserve memory
@@ -101,7 +101,7 @@ def train_fc_layer(real_video_dirs, fake_video_dirs, epochs = 1, batch_size = 16
 			acc_real = np.sum(output_real_samples.cpu().detach().numpy() >= 0.5) / batch_size * 100
 
 			# Training with fake data
-			fake_batch, chosen_video = get_batch(video_path_generator = fake_video_paths, device = device, batch_size = batch_size)
+			fake_batch, chosen_video = get_batch(video_path_generator = fake_video_paths, model_type = model, device = device, batch_size = batch_size)
 			# print("DEBUG: Retrieved FAKE batch from '{}'".format(chosen_video))
 			output_fake_samples = network(fake_batch.detach())
 			# Delete the batch to conserve memory
