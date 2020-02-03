@@ -90,7 +90,7 @@ def get_faces(img, isPath = False, resize_dim = (299, 299)):
 		# print("DEBUG: Cropped image shape: {}".format(np.shape(cropped_img)))
 		
 		# Resize
-		resized_img = cv2.resize(img, resize_dim, interpolation = cv2.INTER_AREA)
+		resized_img = cv2.resize(cropped_img, resize_dim, interpolation = cv2.INTER_AREA)
 		# print("DEBUG: Resized image shape: {}".format(np.shape(resized_img)))
 		# show_test_img(resized_img)
 
