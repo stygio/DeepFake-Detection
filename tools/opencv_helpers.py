@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from random import randint
 
 frame_rate = 30
 segment_length = 1 * frame_rate		# Segment length is the number of seconds
@@ -34,10 +35,14 @@ def saveFrameCollection(filename):
 
 
 def loadFrameSequence(video_handle, start_frame, sequence_length, is_color = True):
+	video_length = video_handle.get(7)
 	try:
 		assert start_frame + sequence_length - 1 <= video_handle.get(7), "# of last frame larger than video length in frames"
 	except AssertionError:
+		video_handle.release()
 		cv2.destroyAllWindows()
+		raise
+
 	current_frame = start_frame
 	video_handle.set(1, current_frame)	#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
 	frame = getFrame(video_handle)
@@ -53,7 +58,26 @@ def loadFrameSequence(video_handle, start_frame, sequence_length, is_color = Tru
 		frame = np.expand_dims(frame, axis=0)
 		frame_sequence = np.concatenate((frame_sequence, frame), axis=0)
 	cv2.destroyAllWindows()
+	
 	return frame_sequence
+
+
+def getRandomFrame(video_handle, is_color = True):
+	video_length = video_handle.get(7)
+	try:
+		assert video_handle.get(7) >= 1, "Video doesn't have a single frame."
+	except AssertionError:
+		video_handle.release()
+		cv2.destroyAllWindows()
+		raise
+
+	random_frame = randint(0, video_length - 1)
+	video_handle.set(1, random_frame)	#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
+	frame = getFrame(video_handle)
+	if not is_color:
+		frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+	
+	return frame
 
 
 def videoFromFrameSequence(filename, frame_sequence, fps, is_color):
