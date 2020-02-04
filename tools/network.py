@@ -10,7 +10,9 @@ import os
 import tools.miscellaneous as misc
 from tools.preprocessing import create_homogenous_batch, create_disparate_batch
 from models.xception import xception
-
+from models.inception_v3 import inception_v3
+from models.resnet152 import resnet152
+from models.resnext101 import resnext101
 
 """
 Function to retrieve a batch in tensor form
@@ -67,7 +69,7 @@ def get_disparate_batch(real_video_generator, fake_video_generator, model_type, 
 # 	batch_size      - size of training batches (training will use both a real and fake batch of this size)
 # 	model           - chosen model to be trained
 # """
-# def train_fc_layer_homogenous_batches(real_video_dirs, fake_video_dirs, epochs = 1, batch_size = 16, model = "Xception"):
+# def train_fc_layer_homogenous_batches(real_video_dirs, fake_video_dirs, epochs = 1, batch_size = 16, model = "xception"):
 # 	# Generators for random file path in real/fake video directories
 # 	real_video_paths = misc.get_random_file_path(real_video_dirs)
 # 	fake_video_paths = misc.get_random_file_path(fake_video_dirs)
@@ -76,7 +78,7 @@ def get_disparate_batch(real_video_generator, fake_video_generator, model_type, 
 
 # 	# Setup chosen CNN model for training of FC layer
 # 	network = None
-# 	if model == "Xception":
+# 	if model == "xception":
 # 		network = xception(pretrained = True).to(device)
 # 	else:
 # 		raise Exception("Invalid model chosen.")
@@ -85,7 +87,7 @@ def get_disparate_batch(real_video_generator, fake_video_generator, model_type, 
 # 	network.unfreeze_fc_layer()
 # 	# Loss function and optimizer
 # 	criterion = nn.BCELoss()
-# 	optimizer = optim.SGD(network.fc_binary.parameters(), lr = 0.01, momentum = 0.9)
+# 	optimizer = optim.SGD(network.fc.parameters(), lr = 0.01, momentum = 0.9)
 # 	# Label tensors
 # 	real_labels = torch.full((batch_size, ), fill_value = 1, dtype = torch.float, device = device)
 # 	real_labels = real_labels.view(-1,1)
@@ -157,7 +159,7 @@ def get_disparate_batch(real_video_generator, fake_video_generator, model_type, 
 # 	batch_size      - size of training batches (training will use both a real and fake batch of this size)
 # 	model           - chosen model to be trained
 # """
-# def train_fc_layer_disparate_batches(real_video_dirs, fake_video_dirs, epochs = 1, batch_size = 16, model = "Xception"):
+# def train_fc_layer_disparate_batches(real_video_dirs, fake_video_dirs, epochs = 1, batch_size = 16, model = "xception"):
 # 	# Generators for random file path in real/fake video directories
 # 	real_video_paths = misc.get_random_file_path(real_video_dirs)
 # 	fake_video_paths = misc.get_random_file_path(fake_video_dirs)
@@ -166,7 +168,7 @@ def get_disparate_batch(real_video_generator, fake_video_generator, model_type, 
 
 # 	# Setup chosen CNN model for training of FC layer
 # 	network = None
-# 	if model == "Xception":
+# 	if model == "xception":
 # 		network = xception(pretrained = True).to(device)
 # 	else:
 # 		raise Exception("Invalid model chosen.")
@@ -175,7 +177,7 @@ def get_disparate_batch(real_video_generator, fake_video_generator, model_type, 
 # 	network.unfreeze_fc_layer()
 # 	# Loss function and optimizer
 # 	criterion = nn.BCELoss()
-# 	optimizer = optim.SGD(network.fc_binary.parameters(), lr = 0.01, momentum = 0.9)	
+# 	optimizer = optim.SGD(network.fc.parameters(), lr = 0.01, momentum = 0.9)	
 
 # 	log_header = "Epoch,Iteration,Loss,Accuracy,\n"
 # 	log_file = misc.create_log(model_type = model, header_string = log_header)
@@ -227,8 +229,8 @@ Function for training the final fully connected layer of chosen model.
 	model           - chosen model to be trained
 """
 def train_fc_layer(real_video_dirs, fake_video_dirs, 
-					epochs = 1, iterations = 500, batch_size = 24, batch_type = "disparate", 
-					lr = 0.001, momentum = 0.9, model = "Xception"):
+					epochs = 1, iterations = 500, batch_size = 32, batch_type = "disparate", 
+					lr = 0.01, momentum = 0.9, model = "xception"):
 	
 	# Generators for random file path in real/fake video directories
 	real_video_paths = misc.get_random_file_path(real_video_dirs)
@@ -238,16 +240,25 @@ def train_fc_layer(real_video_dirs, fake_video_dirs,
 
 	# Setup chosen CNN model for training of FC layer
 	network = None
-	if model == "Xception":
+	if model == "xception":
 		network = xception(pretrained = True).to(device)
+	elif model == "inception_v3":
+		network = inception_v3(pretrained = True).to(device)
+	elif model == "resnet152":
+		network = resnet152(pretrained = True).to(device)
+	elif model == "resnext101":
+		network = resnext101(pretrained = True).to(device)
 	else:
 		raise Exception("Invalid model chosen.")
 	# Set requires_grad to False for all layers except final FC layer
-	network.freeze_layers()
-	network.unfreeze_fc_layer()
+	for param in network.parameters():
+		param.requires_grad = False
+	for param in network.fc.parameters():
+		param.requires_grad = True
+
 	# Loss function and optimizer
-	criterion = nn.BCELoss()
-	optimizer = optim.SGD(network.fc_binary.parameters(), lr = lr, momentum = momentum)	
+	criterion = nn.BCEWithLogitsLoss()
+	optimizer = optim.SGD(network.fc.parameters(), lr = lr, momentum = momentum)	
 
 	if batch_type == "homogenous":
 		# Label tensors

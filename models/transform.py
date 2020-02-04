@@ -1,19 +1,19 @@
 from torchvision import transforms
 
 model_transforms = {
-    'Xception': transforms.Compose([
-        transforms.Resize((299, 299)),
+    'xception': transforms.Compose([
+        transforms.Resize(299),
         transforms.ToTensor(),
-        transforms.Normalize([0.5]*3, [0.5]*3)
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
-    'unknown1': transforms.Compose([
-        transforms.Resize((299, 299)),
+    'inception_v3': transforms.Compose([
+        transforms.Resize(299),
         transforms.ToTensor(),
-        transforms.Normalize([0.5] * 3, [0.5] * 3)
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
-    'unknown2': transforms.Compose([
-        transforms.Resize((299, 299)),
+    'resnet152': transforms.Compose([
+        transforms.Resize(224),
         transforms.ToTensor(),
-        transforms.Normalize([0.5] * 3, [0.5] * 3)
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
 }

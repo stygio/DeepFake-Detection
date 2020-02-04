@@ -26,7 +26,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def test_training():
-	train_fc_layer(real_vid_dirs, fake_vid_dirs, epochs = 10)
+	train_fc_layer(real_vid_dirs, fake_vid_dirs, epochs = 10, model = "resnet152")
 
 
 test_training()
