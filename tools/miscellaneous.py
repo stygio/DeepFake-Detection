@@ -76,9 +76,9 @@ Creates a log file and returns the path to it
 	model_type    - model type name
 	header_string - string which will be at the top of the log file
 """
-def create_log(model_type, header_string):
+def create_log(model_type, lr, momentum, header_string):
 	log_dir = "outputs/logs/"
-	filename = model_type + timestamp() + ".csv"
+	filename = model_type + "_lr{}_m{}".format(lr, momentum) + timestamp() + ".csv"
 	filename = os.path.join(log_dir, filename)
 	f = open(filename, "w+")
 	f.write(header_string)

@@ -25,12 +25,8 @@ two_face_vp = "E:\\FaceForensics_Dataset\\original_sequences\\c23\\videos\\01__w
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def test1():
-	train_fc_layer_homogenous_batches(real_vid_dirs, fake_vid_dirs, epochs = 10, batch_size = 20)
+def test_training():
+	train_fc_layer(real_vid_dirs, fake_vid_dirs, epochs = 10)
 
 
-def test2():
-	train_fc_layer_disparate_batches(real_vid_dirs, fake_vid_dirs, epochs = 10, batch_size = 20)
-
-
-test2()
+test_training()
