@@ -3,21 +3,6 @@ import random
 from datetime import datetime
 from torch import save
 
-# # Return a generator of random real/fake image directories
-# def get_random_directory(real_or_fake):
-# 	if real_or_fake == "real":
-# 		dir_list = os.listdir(real_img_dir)
-# 		# random.shuffle(dir_list)
-# 		for name in dir_list:
-# 			yield os.path.join(real_img_dir, name)
-# 	elif real_or_fake == "fake":
-# 		dir_list = os.listdir(fake_img_dir)
-# 		# random.shuffle(dir_list)
-# 		for name in dir_list:
-# 			yield os.path.join(fake_img_dir, name)
-# 	else:
-# 		raise Exception("Invalid value passed with <real_or_fake>")
-
 
 # Return a string with current timestamp
 def timestamp():

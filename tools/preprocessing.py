@@ -13,7 +13,7 @@ from tools import opencv_helpers
 from tools.miscellaneous import put_file_in_folder
 from models import transform
 
-crop_factor = 1.2
+crop_factor = 1.3
 
 
 def show_test_img(test_img):
@@ -89,7 +89,9 @@ def get_faces(img, isPath = False):
 		elif right > img_width-1:
 			padding = np.zeros((crop_height, right - (img_width-1), 3), dtype = "uint8")
 			cropped_img = cv2.hconcat([padding, cropped_img])
-		# print("DEBUG: Cropped image shape: {}".format(np.shape(cropped_img)))
+
+		if np.shape(cropped_img[0]) != np.shape(cropped_img[1]):
+			print("DEBUG: Cropped image is not a square! Shape: {}".format(np.shape(cropped_img)))
 		
 		# Append transformed face and its position in the image
 		faces.append(cropped_img)
