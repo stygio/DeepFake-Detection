@@ -63,16 +63,17 @@ def get_disparate_batch(real_video_generator, fake_video_generator, model_type, 
 
 
 """
-Function for training the final fully connected layer of chosen model.
+Function for training chosen model.
 	real_video_dirs - list of directories with real training samples (videos) 
 	fake_video_dirs - list of directories with fake training samples (videos)
 	epochs          - # of epochs to train the model
 	batch_size      - size of training batches (training will use both a real and fake batch of this size)
 	model           - chosen model to be trained
+	only_fc_layer   - trains all weights or only the final fully connected layer
 """
-def train_fc_layer(real_video_dirs, fake_video_dirs, 
-					epochs = 1, iterations = 500, batch_size = 32, batch_type = "disparate", 
-					lr = 0.001, momentum = 0.9, model = "xception"):
+def train(real_video_dirs, fake_video_dirs, 
+			epochs = 1, iterations = 500, batch_size = 32, batch_type = "disparate", 
+			lr = 0.001, momentum = 0.9, model = "xception", only_fc_layer = True):
 	
 	# Generators for random file path in real/fake video directories
 	real_video_paths = misc.get_random_file_path(real_video_dirs)
@@ -92,9 +93,12 @@ def train_fc_layer(real_video_dirs, fake_video_dirs,
 		network = resnext101(pretrained = True).to(device)
 	else:
 		raise Exception("Invalid model chosen.")
-	# Set requires_grad to False for all layers except final FC layer
+	
 	for param in network.parameters():
 		param.requires_grad = False
+	if not only_fc_layer:
+		for param in network.conv4.parameters():
+			param.requires_grad = True
 	for param in network.fc.parameters():
 		param.requires_grad = True
 
@@ -122,6 +126,8 @@ def train_fc_layer(real_video_dirs, fake_video_dirs,
 				real_batch, chosen_video = get_homogenous_batch(video_path_generator = real_video_paths, model_type = model, device = device, batch_size = batch_size)
 				# print("DEBUG: Retrieved REAL batch from '{}'".format(chosen_video))
 				output_real_samples = network(real_batch.detach())
+				if model == 'inception_v3':
+					output_real_samples = output_real_samples[0]
 				# Delete the batch to conserve memory
 				del real_batch
 				torch.cuda.empty_cache()
@@ -139,6 +145,8 @@ def train_fc_layer(real_video_dirs, fake_video_dirs,
 				fake_batch, chosen_video = get_homogenous_batch(video_path_generator = fake_video_paths, model_type = model, device = device, batch_size = batch_size)
 				# print("DEBUG: Retrieved FAKE batch from '{}'".format(chosen_video))
 				output_fake_samples = network(fake_batch.detach())
+				if model == 'inception_v3':
+					output_fake_samples = output_fake_samples[0]
 				# Delete the batch to conserve memory
 				del fake_batch
 				torch.cuda.empty_cache()
@@ -180,6 +188,8 @@ def train_fc_layer(real_video_dirs, fake_video_dirs,
 					real_video_generator = real_video_paths, fake_video_generator = fake_video_paths, 
 					model_type = model, device = device, batch_size = batch_size)
 				output = network(batch.detach())
+				if model == 'inception_v3':
+					output = output[0]
 				# Delete the batch to conserve memory
 				del batch
 				torch.cuda.empty_cache()

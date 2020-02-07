@@ -19,3 +19,7 @@ Repository for work on my Master's Thesis project. The goal is to examine state-
 * Training entire network, not just FC layer
 
 * Handling frames without detected faces more intelligently?
+
+# Dependcies:
+
+* pip3 install torch==1.2.0 torchvision==0.4.0 -f https://download.pytorch.org/whl/cu100/torch_stable.html
