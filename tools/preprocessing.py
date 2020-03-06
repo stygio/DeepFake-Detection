@@ -103,8 +103,8 @@ def get_faces(img, isPath = False):
 	return faces, face_positions
 
 
-# Create a batch of face images from a video
-def create_homogenous_batch(video_path, model_type, device, batch_size = 16):
+# Create a batch of face images from a point in the video
+def create_homogenous_batch(video_path, model_type, device, batch_size = 16, start_frame = None):
 	tensor_transform = transform.model_transforms[model_type]
 
 	video_handle = cv2.VideoCapture(video_path)
@@ -120,8 +120,9 @@ def create_homogenous_batch(video_path, model_type, device, batch_size = 16):
 			cv2.destroyAllWindows()
 			raise
 
-		# Pick random start_frame in the range of the video length in frames
-		start_frame = random.randint(0, video_length - batch_size)
+		# If start_frame is not given choose random start_frame in the range of the video length in frames
+		if start_frame == None:
+			start_frame = random.randint(0, video_length - batch_size)
 		# Grab a frame sequence
 		frames = opencv_helpers.loadFrameSequence(video_handle, start_frame, sequence_length = batch_size)
 		video_handle.release()
