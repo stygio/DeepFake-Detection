@@ -35,11 +35,13 @@ def get_random_folder_path(directory):
 	while True:
 		# Choose randomly from items in the directory
 		dir_contents = os.listdir(directory)
-		chosen_folder = random.choice(dir_contents)
-		# Construct path to the chosen folder and verify that it is a folder
-		folder_path = os.path.join(directory, chosen_folder)
-		if os.path.isdir(folder_path):
-			yield folder_path
+		# chosen_folder = random.choice(dir_contents)
+		random.shuffle(dir_contents)
+		for folder in dir_contents:
+			# Construct path to the chosen folder and verify that it is a folder
+			folder_path = os.path.join(directory, folder)
+			if os.path.isdir(folder_path):
+				yield folder_path
 
 
 """

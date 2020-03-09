@@ -37,7 +37,7 @@ def saveFrameCollection(filename):
 def loadFrameSequence(video_handle, start_frame, sequence_length, is_color = True):
 	video_length = video_handle.get(7)
 	try:
-		assert start_frame + sequence_length - 1 <= video_handle.get(7), "# of last frame larger than video length in frames"
+		assert start_frame + sequence_length - 1 <= video_handle.get(7), "Not enough frames after <start_frame> to return sequence of requested <sequence_length>."
 	except AssertionError:
 		video_handle.release()
 		cv2.destroyAllWindows()

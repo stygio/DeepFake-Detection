@@ -104,7 +104,7 @@ def get_faces(img, isPath = False):
 
 
 # Create a batch of face images from a point in the video
-def create_homogenous_batch(video_path, model_type, device, batch_size = 16, start_frame = None):
+def create_homogenous_batch(video_path, model_type, device, batch_size, start_frame = None):
 	tensor_transform = transform.model_transforms[model_type]
 
 	video_handle = cv2.VideoCapture(video_path)
@@ -112,17 +112,14 @@ def create_homogenous_batch(video_path, model_type, device, batch_size = 16, sta
 	try:
 		assert video_handle.isOpened() == True, "VideoCapture() failed to open the video"
 		video_length = video_handle.get(7)
-		try:
-			assert video_length > batch_size, "File '{}' has a video length shorter than the batch_size.".format(video_path)
-		except AssertionError:
-			# Release the video file and re-raise the exception
-			video_handle.release()
-			cv2.destroyAllWindows()
-			raise
-
 		# If start_frame is not given choose random start_frame in the range of the video length in frames
 		if start_frame == None:
-			start_frame = random.randint(0, video_length - batch_size)
+			start_frame = random.randint(0, (video_length - 1) - batch_size)
+		else:
+			if start_frame + batch_size - 1 > video_length:
+				raise IndexError("Requested segment of video is too long: last_frame {} > video length {}".format(
+					start_frame + batch_size - 1, video_length))
+
 		# Grab a frame sequence
 		frames = opencv_helpers.loadFrameSequence(video_handle, start_frame, sequence_length = batch_size)
 		video_handle.release()
@@ -144,7 +141,7 @@ def create_homogenous_batch(video_path, model_type, device, batch_size = 16, sta
 				# ToDo: Multiple faces, choose closest one
 				raise ValueError("Multiple faces detected in {}".format(video_path))
 	except:
-		# VideoCapture() failed to open the video
+		# An error occured
 		video_handle.release()
 		cv2.destroyAllWindows()
 		raise
