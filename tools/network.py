@@ -18,6 +18,13 @@ from models.resnet152 import resnet152
 from models.resnext101 import resnext101
 
 
+kaggle_test_folders = [	"dfdc_train_part_46",
+						"dfdc_train_part_47",
+						"dfdc_train_part_48",
+						"dfdc_train_part_49",
+						"dfdc_train_part_50"]
+
+
 """
 Function to retrieve a homogenous batch in tensor form (FaceForensics dataset)
 	video_path_generator - generator object which returns paths to video samples
@@ -394,11 +401,15 @@ Function for training chosen model on kaggle data.
 	only_fc_layer   - trains all weights or only the final fully connected layer
 """
 def train_kaggle(kaggle_dataset_path,
-			epochs = 1, batch_size = 32, batch_type = "dual", 
+			epochs = 1, iterations = 50, batch_size = 32, batch_type = "dual", 
 			lr = 0.001, momentum = 0.9, model = "xception", only_fc_layer = True):
 	
-	# Generators for random file path in real/fake video directories
-	folder_paths = misc.get_random_folder_path(kaggle_dataset_path)
+	# Generator for random folder paths in real/fake video directories
+	kaggle_folders = [os.path.join(kaggle_dataset_path, x) for x in os.listdir(kaggle_dataset_path) if x not in kaggle_test_folders]
+	folder_paths = misc.get_random_folder_from_list(kaggle_folders)
+	del kaggle_folders
+
+	# Choose torch device
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 	# Setup chosen CNN model for training of FC layer
@@ -441,14 +452,14 @@ def train_kaggle(kaggle_dataset_path,
 		# Possibly replace with a generator?
 		videos = os.listdir(folder_path)
 		random.shuffle(videos)
-		videos = [x for x in videos if x not in ["metadata.json", "multiple_faces", "bad_samples"]]
+		videos = (x for x in videos if x not in ["metadata.json", "multiple_faces", "bad_samples"])
 		metadata = os.path.join(folder_path, "metadata.json")
 		metadata = json.load(open(metadata))
 
+		# Each processed video/set of videos is an iteration
 		iteration = -1
-		# Each video is an iteration
-		for video in videos:
-			iteration += 1
+		while iteration < iterations:
+			video = next(videos)
 			accuracies = []
 			errors = []
 			# Get label from metadata.json
@@ -481,7 +492,15 @@ def train_kaggle(kaggle_dataset_path,
 			# In case of <batch_type> dual, only run training if the handled video is fake
 			# Otherwise, a dual batch can't be constructed from the fake and its original
 			if batch_type != "dual" or label == "FAKE": 
+				iteration += 1
 				batches = 0
+				if batch_type == "single":
+					print(">> Epoch [{}/{}] Iteration [{}] Processing: {}".format(
+									epoch, epochs-1, iteration, video_path))
+				elif batch_type == "dual":
+					print(">> Epoch [{}/{}] Iteration [{}] Processing: {} and {}".format(
+									epoch, epochs-1, iteration, video_path_1, video_path_2))
+
 				while True:
 					torch.cuda.empty_cache()
 					# Try to get next batch

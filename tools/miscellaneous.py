@@ -15,7 +15,7 @@ def timestamp():
 Return an infinite generator of random files from provided list of directories
 	directory_list - list of directories with samples
 """
-def get_random_file_path(directory_list):
+def get_random_file_from_list(directory_list):
 	while True:
 		# Choose a random directory from the list of sample directories
 		chosen_dir = random.choice(directory_list)
@@ -28,18 +28,29 @@ def get_random_file_path(directory_list):
 
 
 """
-Return an infinite generator of random folders from provided directory
+Return an infinite generator of random folders from provided path to directory
 	directory - path to directory containing requested folders
 """
-def get_random_folder_path(directory):
+def get_random_folder_from_path(directory):
 	while True:
 		# Choose randomly from items in the directory
 		dir_contents = os.listdir(directory)
-		# chosen_folder = random.choice(dir_contents)
 		random.shuffle(dir_contents)
 		for folder in dir_contents:
 			# Construct path to the chosen folder and verify that it is a folder
 			folder_path = os.path.join(directory, folder)
+			if os.path.isdir(folder_path):
+				yield folder_path
+
+
+"""
+Return an infinite generator of random folders from provided list of directories
+	directory_list - list of folders with samples
+"""
+def get_random_folder_from_list(directory_list):
+	while True:
+		random.shuffle(directory_list)
+		for folder_path in directory_list:
 			if os.path.isdir(folder_path):
 				yield folder_path
 
