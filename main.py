@@ -31,6 +31,7 @@ def test_training_ff():
 	train_faceforensics(real_vid_dirs, fake_vid_dirs, batch_size = 32, epochs = 10, lr = 0.001, model = "inception_v3", only_fc_layer = True)
 
 def test_training_kaggle():
-	train_kaggle(kaggle_path, batch_size = 32, epochs = 10, lr = 0.001, model = "xception", only_fc_layer = True)
+	train_kaggle(kaggle_path, model_name = "xception", model_weights_path = "models/saved_models/xception_date$03122020_time$183409.pt", 
+		batch_size = 32, epochs = 10, lr = 0.001, only_fc_layer = True)
 
 test_training_kaggle()

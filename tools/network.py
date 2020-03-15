@@ -12,17 +12,14 @@ import random
 
 import tools.miscellaneous as misc
 from tools.preprocessing import create_homogenous_batch, create_disparate_batch
-from models.xception import xception
-from models.inception_v3 import inception_v3
-from models.resnet152 import resnet152
-from models.resnext101 import resnext101
+from models.model_helpers import get_model
 
 
-kaggle_test_folders = [	"dfdc_train_part_46",
+kaggle_test_folders = [	"dfdc_train_part_45",
+						"dfdc_train_part_46",
 						"dfdc_train_part_47",
 						"dfdc_train_part_48",
-						"dfdc_train_part_49",
-						"dfdc_train_part_50"]
+						"dfdc_train_part_49"]
 
 
 """
@@ -240,12 +237,12 @@ Function for training chosen model on faceforensics data.
 	fake_video_dirs - list of directories with fake training samples (videos)
 	epochs          - # of epochs to train the model
 	batch_size      - size of training batches (training will use both a real and fake batch of this size)
-	model           - chosen model to be trained
+	model_name      - chosen model to be trained
 	only_fc_layer   - trains all weights or only the final fully connected layer
 """
-def train_faceforensics(real_video_dirs, fake_video_dirs, 
+def train_faceforensics(real_video_dirs, fake_video_dirs, model_name = "xception", model_weights_path = None, 
 			epochs = 1, iterations = 500, batch_size = 32, batch_type = "disparate", 
-			lr = 0.001, momentum = 0.9, model = "xception", only_fc_layer = True):
+			lr = 0.001, momentum = 0.9, only_fc_layer = True):
 	
 	# Generators for random file path in real/fake video directories
 	real_video_paths = misc.get_random_file_path(real_video_dirs)
@@ -254,17 +251,7 @@ def train_faceforensics(real_video_dirs, fake_video_dirs,
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 	# Setup chosen CNN model for training of FC layer
-	network = None
-	if model == "xception":
-		network = xception(pretrained = True).to(device)
-	elif model == "inception_v3":
-		network = inception_v3(pretrained = True).to(device)
-	elif model == "resnet152":
-		network = resnet152(pretrained = True).to(device)
-	elif model == "resnext101":
-		network = resnext101(pretrained = True).to(device)
-	else:
-		raise Exception("Invalid model chosen.")
+	network = get_model(model_name, model_weights_path).to(device)
 	
 	for param in network.parameters():
 		param.requires_grad = False
@@ -287,7 +274,7 @@ def train_faceforensics(real_video_dirs, fake_video_dirs,
 		fake_labels = fake_labels.view(-1,1)
 		# Create log file
 		log_header = "Epoch,Iteration,Acc(R),MeanOut(R),Loss(R),Acc(F),MeanOut(F),Loss(F),Acc(Overall),\n"
-		log_file = misc.create_log(model_type = model, lr = lr, momentum = momentum, header_string = log_header)
+		log_file = misc.create_log(model_type = model_name, lr = lr, momentum = momentum, header_string = log_header)
 		# Run training loop
 		for epoch in range(epochs):
 			for iteration in range(iterations):
@@ -295,10 +282,10 @@ def train_faceforensics(real_video_dirs, fake_video_dirs,
 
 				network.zero_grad()
 				# Training with real data
-				real_batch, chosen_video = get_homogenous_batch(video_path_generator = real_video_paths, model_type = model, device = device, batch_size = batch_size)
+				real_batch, chosen_video = get_homogenous_batch(video_path_generator = real_video_paths, model_type = model_name, device = device, batch_size = batch_size)
 				# print("DEBUG: Retrieved REAL batch from '{}'".format(chosen_video))
 				output_real_samples = network(real_batch.detach())
-				if model == 'inception_v3':
+				if model_name == 'inception_v3':
 					output_real_samples = output_real_samples[0]
 				# Delete the batch to conserve memory
 				del real_batch
@@ -314,10 +301,10 @@ def train_faceforensics(real_video_dirs, fake_video_dirs,
 
 				network.zero_grad()
 				# Training with fake data
-				fake_batch, chosen_video = get_homogenous_batch(video_path_generator = fake_video_paths, model_type = model, device = device, batch_size = batch_size)
+				fake_batch, chosen_video = get_homogenous_batch(video_path_generator = fake_video_paths, model_type = model_name, device = device, batch_size = batch_size)
 				# print("DEBUG: Retrieved FAKE batch from '{}'".format(chosen_video))
 				output_fake_samples = network(fake_batch.detach())
-				if model == 'inception_v3':
+				if model_name == 'inception_v3':
 					output_fake_samples = output_fake_samples[0]
 				# Delete the batch to conserve memory
 				del fake_batch
@@ -343,12 +330,12 @@ def train_faceforensics(real_video_dirs, fake_video_dirs,
 				misc.add_to_log(log_file = log_file, log_string = log_string)
 
 			# Save the network after every epoch
-			misc.save_network(network_state_dict = network.state_dict(), model_type = model)
+			misc.save_network(network_state_dict = network.state_dict(), model_type = model_name)
 
 	elif batch_type == "disparate":
 		# Create log file
 		log_header = "Epoch,Iteration,Loss,Accuracy,\n"
-		log_file = misc.create_log(model_type = model, lr = lr, momentum = momentum, header_string = log_header)
+		log_file = misc.create_log(model_type = model_name, lr = lr, momentum = momentum, header_string = log_header)
 		# Run training loop
 		for epoch in range(epochs):
 			for iteration in range(iterations):
@@ -358,9 +345,9 @@ def train_faceforensics(real_video_dirs, fake_video_dirs,
 				# Training with mixed data
 				batch, labels = get_disparate_batch(
 					real_video_generator = real_video_paths, fake_video_generator = fake_video_paths, 
-					model_type = model, device = device, batch_size = batch_size)
+					model_type = model_name, device = device, batch_size = batch_size)
 				output = network(batch.detach())
-				if model == 'inception_v3':
+				if model_name == 'inception_v3':
 					output = output[0]
 				# Delete the batch to conserve memory
 				del batch
@@ -386,7 +373,7 @@ def train_faceforensics(real_video_dirs, fake_video_dirs,
 				misc.add_to_log(log_file = log_file, log_string = log_string)
 
 			# Save the network after every epoch
-			misc.save_network(network_state_dict = network.state_dict(), model_type = model)
+			misc.save_network(network_state_dict = network.state_dict(), model_type = model_name, training_dataset = "faceforensics")
 	else:
 		raise Exception("Invalid batch_type: {}".format(batch_type))
 
@@ -397,12 +384,12 @@ Function for training chosen model on kaggle data.
 	fake_video_dirs - list of directories with fake training samples (videos)
 	epochs          - # of epochs to train the model
 	batch_size      - size of training batches (training will use both a real and fake batch of this size)
-	model           - chosen model to be trained
+	model_name      - chosen model to be trained
 	only_fc_layer   - trains all weights or only the final fully connected layer
 """
-def train_kaggle(kaggle_dataset_path,
+def train_kaggle(kaggle_dataset_path, model_name = "xception", model_weights_path = None,
 			epochs = 1, iterations = 50, batch_size = 32, batch_type = "dual", 
-			lr = 0.001, momentum = 0.9, model = "xception", only_fc_layer = True):
+			lr = 0.001, momentum = 0.9, only_fc_layer = True):
 	
 	# Generator for random folder paths in real/fake video directories
 	kaggle_folders = [os.path.join(kaggle_dataset_path, x) for x in os.listdir(kaggle_dataset_path) if x not in kaggle_test_folders]
@@ -413,17 +400,7 @@ def train_kaggle(kaggle_dataset_path,
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 	# Setup chosen CNN model for training of FC layer
-	network = None
-	if model == "xception":
-		network = xception(pretrained = True).to(device)
-	elif model == "inception_v3":
-		network = inception_v3(pretrained = True).to(device)
-	elif model == "resnet152":
-		network = resnet152(pretrained = True).to(device)
-	elif model == "resnext101":
-		network = resnext101(pretrained = True).to(device)
-	else:
-		raise Exception("Invalid model chosen.")
+	network = get_model(model_name, model_weights_path).to(device)
 	
 	for param in network.parameters():
 		param.requires_grad = False
@@ -440,7 +417,7 @@ def train_kaggle(kaggle_dataset_path,
 
 	# Create log file
 	log_header = "Epoch,Iteration,Loss,Accuracy,\n"
-	log_file = misc.create_log(model_type = model, lr = lr, momentum = momentum, header_string = log_header)
+	log_file = misc.create_log(model_type = model_name, lr = lr, momentum = momentum, header_string = log_header)
 	
 	# Run training loop, a folder of videos is an epoch
 	for epoch in range(epochs):
@@ -474,7 +451,7 @@ def train_kaggle(kaggle_dataset_path,
 				labels = labels.view(-1,1)
 				# Get batch generator
 				video_path = os.path.join(folder_path, video)
-				batch_generator = get_kaggle_batch_single(video_path = video_path, model_type = model, device = device, batch_size = batch_size)
+				batch_generator = get_kaggle_batch_single(video_path = video_path, model_type = model_name, device = device, batch_size = batch_size)
 			elif batch_type == "dual":
 				# Assert the batch_size is even
 				assert batch_size % 2 == 0, "Uneven batch_size equal to {}".format(batch_size)
@@ -485,7 +462,7 @@ def train_kaggle(kaggle_dataset_path,
 					labels = labels.view(-1,1)
 					video_path_1 = os.path.join(folder_path, video)
 					video_path_2 = os.path.join(folder_path, metadata[video]['original'])
-					batch_generator = get_kaggle_batch_dual(video_path_1, video_path_2, model_type = model, device = device, batch_size = batch_size)
+					batch_generator = get_kaggle_batch_dual(video_path_1, video_path_2, model_type = model_name, device = device, batch_size = batch_size)
 			else:
 				raise Exception("Invalid batch_type: {}".format(batch_type))
 
@@ -496,10 +473,12 @@ def train_kaggle(kaggle_dataset_path,
 				batches = 0
 				if batch_type == "single":
 					print(">> Epoch [{}/{}] Iteration [{}] Processing: {}".format(
-									epoch, epochs-1, iteration, video_path))
+									epoch, epochs-1, iteration, os.path.join(os.path.split(folder_path)[1], video)))
 				elif batch_type == "dual":
 					print(">> Epoch [{}/{}] Iteration [{}] Processing: {} and {}".format(
-									epoch, epochs-1, iteration, video_path_1, video_path_2))
+									epoch, epochs-1, iteration, 
+									os.path.join(os.path.split(folder_path)[1], video_path_1), 
+									os.path.join(os.path.split(folder_path)[1], video_path_2)))
 
 				while True:
 					torch.cuda.empty_cache()
@@ -511,7 +490,7 @@ def train_kaggle(kaggle_dataset_path,
 							break
 						network.zero_grad()
 						output = network(batch.detach())
-						if model == 'inception_v3':
+						if model_name == 'inception_v3':
 							output = output[0]
 						# Delete the batch to conserve memory
 						del batch
@@ -554,4 +533,4 @@ def train_kaggle(kaggle_dataset_path,
 						break
 
 		# Save the network after every epoch
-		misc.save_network(network_state_dict = network.state_dict(), model_type = model)
+		misc.save_network(network_state_dict = network.state_dict(), model_type = model_name, training_dataset = "kaggle")

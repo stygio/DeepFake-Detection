@@ -3,11 +3,13 @@ import random
 from datetime import datetime
 from torch import save
 
+model_dir = "models/saved_models/"
+
 
 # Return a string with current timestamp
 def timestamp():
 	now = datetime.now()
-	timestamp_string = now.strftime("_date$%m%d%Y_time$%H%M%S")
+	timestamp_string = now.strftime("_%m%d%Y_%H%M%S")
 	return timestamp_string
 
 
@@ -76,9 +78,8 @@ Save a PyTorch network to a file in models/saved_models/
 	network_state_dict - state dict of the network to be saved
 	model_type         - model type name
 """
-def save_network(network_state_dict, model_type):
-	model_dir = "models/saved_models/"
-	filename = model_type + timestamp() + ".pt"
+def save_network(network_state_dict, model_type, training_dataset):
+	filename = model_type + training_dataset + timestamp() + ".pt"
 	filename = os.path.join(model_dir, filename)
 	print("Saving network as '{}'".format(filename))
 	save(network_state_dict, filename)
