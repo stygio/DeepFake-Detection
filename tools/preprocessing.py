@@ -41,20 +41,39 @@ def show_test_img(test_img):
 	cv2.destroyAllWindows()
 
 
-def get_mobilenet_face(image):
-    # global boxes,scores,num_detections
-    (im_height,im_width)=image.shape[:-1]
-    imgs=np.array([image])
-    (boxes, scores) = sess.run(
-        [boxes_tensor, scores_tensor],
-        feed_dict={image_tensor: imgs})
-    max_=np.where(scores==scores.max())[0][0]
-    box=boxes[0][max_]
-    ymin, xmin, ymax, xmax = box
-    (left, right, top, bottom) = (xmin * im_width, xmax * im_width,
-                                ymin * im_height, ymax * im_height)
-    left, right, top, bottom = int(left), int(right), int(top), int(bottom)
-    return (top, right, bottom, left)
+# def get_mobilenet_face(image):
+#     # global boxes,scores,num_detections
+#     (im_height,im_width)=image.shape[:-1]
+#     imgs=np.array([image])
+#     (boxes, scores) = sess.run(
+#         [boxes_tensor, scores_tensor],
+#         feed_dict={image_tensor: imgs})
+#     max_=np.where(scores==scores.max())[0][0]
+#     box=boxes[0][max_]
+#     ymin, xmin, ymax, xmax = box
+#     (left, right, top, bottom) = (xmin * im_width, xmax * im_width,
+#                                 ymin * im_height, ymax * im_height)
+#     left, right, top, bottom = int(left), int(right), int(top), int(bottom)
+#     return (top, right, bottom, left)
+
+
+def get_mobilenet_faces(image):
+	# global boxes,scores,num_detections
+	(im_height,im_width)=image.shape[:-1]
+	imgs=np.array([image])
+	(boxes, scores) = sess.run(
+		[boxes_tensor, scores_tensor],
+		feed_dict={image_tensor: imgs})
+
+	faces = []
+	for i, box in enumerate(boxes[0]):
+		if scores[0][i] > 0.4:
+			ymin, xmin, ymax, xmax = box
+			(left, right, top, bottom) = (xmin * im_width, xmax * im_width, 
+										ymin * im_height, ymax * im_height)
+			face = (int(top), int(right), int(bottom), int(left))
+			faces.append(face)
+	return faces
 
 
 # Image preprocessing: face detection, cropping, resizing
@@ -80,7 +99,7 @@ def get_faces(img, isPath = False):
 	# if debug_elapsed_time:
 			# print('DEBUG: <get_faces> <face_recognition> time: {:2f}'.format(time.time() - start_time))
 
-	face_locations = [get_mobilenet_face(rgb_img)]
+	face_locations = get_mobilenet_faces(rgb_img)
 	if debug_elapsed_time:
 			print('DEBUG: <get_faces> <mobilenet_face> time: {:2f}'.format(time.time() - start_time))
 
