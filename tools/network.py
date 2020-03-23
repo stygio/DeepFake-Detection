@@ -9,6 +9,7 @@ import os
 import json
 import cv2
 import random
+import time
 
 import tools.miscellaneous as misc
 from tools.preprocessing import create_homogenous_batch, create_disparate_batch
@@ -161,9 +162,11 @@ def get_kaggle_batch_dual(video_path_1, video_path_2, model_type, device, batch_
 				batch1, batch2 = None, None
 				while not torch.is_tensor(batch1):
 					try:
+						# start_time = time.time()
 						batch1 = create_homogenous_batch(video_path = video_path_1, 
 							model_type = model_type, device = device, batch_size = batch_size/2, start_frame = start_frame_1)
 						start_frame_1 += batch_size/2
+						# print("DEBUG: <get_kaggle_batch_dual> <create_homogenous_batch> elapsed time: {}".format(time.time() - start_time))
 
 					except IndexError as Error:
 						# Requested segment is invalid (goes out of bounds of video length)
@@ -402,13 +405,18 @@ def train_kaggle(kaggle_dataset_path, model_name = "xception", model_weights_pat
 	# Setup chosen CNN model for training of FC layer
 	network = get_model(model_name, model_weights_path).to(device)
 	
-	for param in network.parameters():
-		param.requires_grad = False
-	if not only_fc_layer:
-		for param in network.conv4.parameters():
+	# for param in network.parameters():
+	# 	param.requires_grad = False
+	# if not only_fc_layer:
+	# 	for param in network.conv4.parameters():
+	# 		param.requires_grad = True
+	# for param in network.fc.parameters():
+	# 	param.requires_grad = True
+	if only_fc_layer:
+		for param in network.parameters():
+			param.requires_grad = False
+		for param in network.fc.parameters():
 			param.requires_grad = True
-	for param in network.fc.parameters():
-		param.requires_grad = True
 
 	# Loss function and optimizer
 	criterion = nn.BCEWithLogitsLoss()
@@ -434,7 +442,7 @@ def train_kaggle(kaggle_dataset_path, model_name = "xception", model_weights_pat
 		metadata = json.load(open(metadata))
 
 		# Each processed video/set of videos is an iteration
-		iteration = -1
+		iteration = 0
 		while iteration < iterations:
 			video = next(videos)
 			accuracies = []

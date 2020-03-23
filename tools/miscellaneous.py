@@ -79,7 +79,7 @@ Save a PyTorch network to a file in models/saved_models/
 	model_type         - model type name
 """
 def save_network(network_state_dict, model_type, training_dataset):
-	filename = model_type + training_dataset + timestamp() + ".pt"
+	filename = model_type + "_" + training_dataset + timestamp() + ".pt"
 	filename = os.path.join(model_dir, filename)
 	print("Saving network as '{}'".format(filename))
 	save(network_state_dict, filename)
