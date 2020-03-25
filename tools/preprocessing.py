@@ -15,6 +15,7 @@ from tools.miscellaneous import put_file_in_folder
 from models import transform
 
 import tensorflow as tf
+tf.logging.set_verbosity(tf.logging.FATAL)
 detection_graph = tf.Graph()
 with detection_graph.as_default():
 	od_graph_def = tf.compat.v1.GraphDef()
@@ -67,7 +68,7 @@ def get_mobilenet_faces(image):
 
 	faces = []
 	for i, box in enumerate(boxes[0]):
-		if scores[0][i] > 0.4:
+		if scores[0][i] > 0.25:
 			ymin, xmin, ymax, xmax = box
 			(left, right, top, bottom) = (xmin * im_width, xmax * im_width, 
 										ymin * im_height, ymax * im_height)

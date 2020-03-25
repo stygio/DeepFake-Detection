@@ -164,7 +164,7 @@ def get_kaggle_batch_dual(video_path_1, video_path_2, model_type, device, batch_
 					try:
 						# start_time = time.time()
 						batch1 = create_homogenous_batch(video_path = video_path_1, 
-							model_type = model_type, device = device, batch_size = batch_size/2, start_frame = start_frame_1)
+							model_type = model_type, device = device, batch_size = int(batch_size/2), start_frame = start_frame_1)
 						start_frame_1 += batch_size/2
 						# print("DEBUG: <get_kaggle_batch_dual> <create_homogenous_batch> elapsed time: {}".format(time.time() - start_time))
 
@@ -193,7 +193,7 @@ def get_kaggle_batch_dual(video_path_1, video_path_2, model_type, device, batch_
 				while not torch.is_tensor(batch2):
 					try:
 						batch2 = create_homogenous_batch(video_path = video_path_2, 
-							model_type = model_type, device = device, batch_size = batch_size/2, start_frame = start_frame_2)
+							model_type = model_type, device = device, batch_size = int(batch_size/2), start_frame = start_frame_2)
 						start_frame_2 += batch_size/2
 
 					except IndexError as Error:
@@ -474,9 +474,9 @@ def train_kaggle(kaggle_dataset_path, model_name = "xception", model_weights_pat
 			else:
 				raise Exception("Invalid batch_type: {}".format(batch_type))
 
-			# In case of <batch_type> dual, only run training if the handled video is fake
+			# In case of <batch_type> dual, only run training if the handled video is fake and it's source video exists
 			# Otherwise, a dual batch can't be constructed from the fake and its original
-			if batch_type != "dual" or label == "FAKE": 
+			if batch_type != "dual" or (label == "FAKE" and os.path.exists(video_path_2)): 
 				iteration += 1
 				batches = 0
 				if batch_type == "single":
