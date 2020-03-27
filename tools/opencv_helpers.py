@@ -31,16 +31,14 @@ def saveFrameCollection(filename):
 		else:
 			frame_collection = np.concatenate((frame_collection, image), axis=0)
 	video_handle.release()
-	cv2.destroyAllWindows()
 
 
 def loadFrameSequence(video_handle, start_frame, sequence_length, is_color = True):
 	video_length = video_handle.get(7)
 	try:
-		assert start_frame + sequence_length - 1 <= video_handle.get(7), "Not enough frames after <start_frame> to return sequence of requested <sequence_length>."
+		assert start_frame + sequence_length <= video_length, "Not enough frames after <start_frame> to return sequence of requested <sequence_length>."
 	except AssertionError:
 		video_handle.release()
-		cv2.destroyAllWindows()
 		raise
 
 	current_frame = start_frame
@@ -61,10 +59,25 @@ def loadFrameSequence(video_handle, start_frame, sequence_length, is_color = Tru
 		# frame_sequence = np.concatenate((frame_sequence, frame), axis=0)
 		frame_sequence.append(frame)
 	frame_sequence = np.array(frame_sequence)
-
-	cv2.destroyAllWindows()
 	
 	return frame_sequence
+
+
+def yield_video_frames(video_handle, sequence_length, is_color = True):
+	video_length = video_handle.get(7)
+	current_frame = 0
+
+	while current_frame + sequence_length <= video_length:
+		frame_sequence = []
+		for _ in range(sequence_length):
+			frame = getFrame(video_handle)
+			if not is_color:
+				frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+			frame_sequence.append(frame)
+		frame_sequence = np.array(frame_sequence)
+		current_frame += sequence_length
+		
+		yield frame_sequence
 
 
 def getRandomFrame(video_handle, is_color = True):

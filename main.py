@@ -1,11 +1,3 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as functional
-import torch.optim as optim
-import torchvision
-import torchvision.transforms as transforms
-import os
-
 import tools.miscellaneous as misc
 from tools.network import *
 
@@ -31,7 +23,7 @@ def test_training_ff():
 	train_faceforensics(real_vid_dirs, fake_vid_dirs, batch_size = 32, epochs = 10, lr = 0.001, model = "inception_v3", only_fc_layer = True)
 
 def test_training_kaggle():
-	train_kaggle(kaggle_path, model_name = "xception", model_weights_path = "models/saved_models/xception_kaggle_03222020_170110.pt", 
+	train_kaggle(kaggle_path, model_name = "xception", model_weights_path = "models/saved_models/xception_kaggle_mobilenet_full_4.pt", 
 		batch_size = 4, epochs = 10, lr = 0.001, only_fc_layer = False)
 
 test_training_kaggle()

@@ -33,7 +33,6 @@ with detection_graph.as_default():
 	num_detections = detection_graph.get_tensor_by_name('num_detections:0')
 
 crop_factor = 1.3
-debug_elapsed_time = False
 
 
 def show_test_img(test_img):
@@ -59,21 +58,38 @@ def show_test_img(test_img):
 
 
 def get_mobilenet_faces(image):
-	# global boxes,scores,num_detections
+	# ToDo: Change implementation to always grab the highest score, 
+	# 		after that check if there are others above a certain threshold.
+	#		This can be done because the datasets guarantee that there is always a face in the videos.
+
+	# Minimum threshold to qualify a detected object as a face
+	mobilenet_score_threshold = 0.4
+
 	(im_height,im_width)=image.shape[:-1]
 	imgs=np.array([image])
 	(boxes, scores) = sess.run(
 		[boxes_tensor, scores_tensor],
 		feed_dict={image_tensor: imgs})
 
-	faces = []
+	# Grab the box which the highest scoring face
+	max_ = np.where(scores == scores.max())[0][0]
+	box = boxes[0][max_]
+	ymin, xmin, ymax, xmax = box
+	(left, right, top, bottom) = (xmin * im_width, xmax * im_width, 
+								ymin * im_height, ymax * im_height)
+	face = (int(top), int(right), int(bottom), int(left))
+	faces = [face]
+
+	# Append any other faces
 	for i, box in enumerate(boxes[0]):
-		if scores[0][i] > 0.25:
+		# Check whether the box's score is above the threshold and isn't the max score (that one is already added)
+		if scores[0][i] > mobilenet_score_threshold and i != max_:
 			ymin, xmin, ymax, xmax = box
 			(left, right, top, bottom) = (xmin * im_width, xmax * im_width, 
 										ymin * im_height, ymax * im_height)
 			face = (int(top), int(right), int(bottom), int(left))
 			faces.append(face)
+
 	return faces
 
 
@@ -94,15 +110,11 @@ def get_faces(img, isPath = False):
 	
 	# Acquire face_locations, which is a list of tuples with locations
 	# of bounding boxes specified as (top, right, bottom, left)
-	start_time = time.time()
-
+	# start_time = time.time()
 	# face_locations = face_recognition.face_locations(rgb_img, model="cnn")
-	# if debug_elapsed_time:
-			# print('DEBUG: <get_faces> <face_recognition> time: {:2f}'.format(time.time() - start_time))
-
+	# print('DEBUG: <get_faces> <face_recognition> time: {:2f}'.format(time.time() - start_time))
 	face_locations = get_mobilenet_faces(rgb_img)
-	if debug_elapsed_time:
-			print('DEBUG: <get_faces> <mobilenet_face> time: {:2f}'.format(time.time() - start_time))
+	# print('DEBUG: <get_mobilenet_faces> time: {:2f}'.format(time.time() - start_time))
 
 	faces = []
 	face_positions = []
@@ -168,7 +180,7 @@ def get_faces(img, isPath = False):
 
 
 # Create a batch of face images from a point in the video
-def create_homogenous_batch(video_path, model_type, device, batch_size, start_frame = None):
+def create_homogenous_batch_chosen_video_segment(video_path, model_type, device, batch_size, start_frame = None):
 	tensor_transform = transform.model_transforms[model_type]
 
 	video_handle = cv2.VideoCapture(video_path)
@@ -180,24 +192,24 @@ def create_homogenous_batch(video_path, model_type, device, batch_size, start_fr
 		if start_frame == None:
 			start_frame = random.randint(0, (video_length - 1) - batch_size)
 		else:
-			if start_frame + batch_size - 1 > video_length:
+			if not start_frame + batch_size <= video_length:
 				raise IndexError("Requested segment of video is too long: last_frame {} > video length {}".format(
-					start_frame + batch_size - 1, video_length))
+					start_frame + batch_size, video_length))
 
 		# Grab a frame sequence
+		start_time = time.time()
 		frames = opencv_helpers.loadFrameSequence(video_handle, start_frame, sequence_length = batch_size)
 		video_handle.release()
-		cv2.destroyAllWindows()
+		print('DEBUG: <loadFrameSequence> elapsed time: {:.2f}'.format(time.time() - start_time))
 		# Process the frames to retrieve only the faces, and construct the batch
 		batch = []
-		for i, frame in enumerate(frames):
+		for frame in frames:
 			# Retrieve detected faces and their positions. Throw an <AssertionError> in case of no detected faces.
 			faces, face_positions = [], []
 			try:
 				# start_time = time.time()
 				faces, face_positions = get_faces(frame)
-				# if debug_elapsed_time:
-				# 	print('DEBUG: <create_homogenous_batch> <get_faces> elapsed time: {:.2f}'.format(time.time() - start_time))
+				# print('DEBUG: <create_homogenous_batch> <get_faces> elapsed time: {:.2f}'.format(time.time() - start_time))
 			except AssertionError:
 				raise AttributeError("No faces detected in {}".format(video_path))
 			# Check whether 1 face was detected. If more - throw a ValueError
@@ -210,12 +222,34 @@ def create_homogenous_batch(video_path, model_type, device, batch_size, start_fr
 	except:
 		# An error occured
 		video_handle.release()
-		cv2.destroyAllWindows()
 		raise
 
 	# Stack list of tensors into a single tensor on device
 	batch = torch.stack(batch).to(device)
-	
+	return batch
+
+
+# Create a batch of face images from a point in the video
+def create_homogenous_batch(video_frames, model_type, device):
+	tensor_transform = transform.model_transforms[model_type]
+	# Process the frames to retrieve only the faces, and construct the batch
+	batch = []
+	for frame in video_frames:
+		# Retrieve detected faces and their positions. Throw an <AssertionError> in case of no detected faces.
+		faces, face_positions = [], []
+		try:
+			faces, face_positions = get_faces(frame)
+		except AssertionError as Error:
+			raise AttributeError("No faces detected.")
+		# Check whether 1 face was detected. If more - throw a ValueError
+		if len(face_positions) == 1:
+			tensor_img = tensor_transform(Image.fromarray(faces[0]))
+			batch.append(tensor_img)
+		else:
+			raise ValueError("Multiple faces detected.")
+
+	# Stack list of tensors into a single tensor on device
+	batch = torch.stack(batch).to(device)
 	return batch
 
 

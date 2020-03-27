@@ -14,6 +14,7 @@ import time
 import tools.miscellaneous as misc
 from tools.preprocessing import create_homogenous_batch, create_disparate_batch
 from models.model_helpers import get_model
+from tools import opencv_helpers
 
 
 kaggle_test_folders = [	"dfdc_train_part_45",
@@ -130,6 +131,108 @@ def get_kaggle_batch_single(video_path, model_type, device, batch_size):
 		yield None
 
 
+# """
+# Function to retrieve a generator of batches in tensor form (Kaggle dataset)
+# The batches are constructed from two seperate videos
+# 	video_path_1         - path to the video from which frames will be captured
+# 	video_path_2         - path to the video from which frames will be captured
+# 	model_type           - model type name
+# 	device               - PyTorch device
+# 	batch_size           - size of returned batch (# of consecutive frames from the video)
+# """
+# def get_kaggle_batch_dual(video_path_1, video_path_2, model_type, device, batch_size):
+# 	# Open the two videos
+# 	video_handle_1 = cv2.VideoCapture(video_path_1)
+# 	video_handle_2 = cv2.VideoCapture(video_path_2)
+# 	# Try..Except to handle the video_handle failure case
+# 	try:
+# 		assert video_handle_1.isOpened() == True, "VideoCapture() failed to open {}".format(video_path_1)
+# 		video_length_1 = video_handle_1.get(7)
+# 		video_handle_1.release()
+# 		assert video_handle_2.isOpened() == True, "VideoCapture() failed to open {}".format(video_path_2)
+# 		video_length_2 = video_handle_2.get(7)
+# 		video_handle_2.release()
+
+
+# 		error = False
+# 		while start_frame_1 + batch_size/2 <= video_length_1 and start_frame_2 + batch_size/2 <= video_length_2 and not error:
+# 			batch = None
+# 			while not torch.is_tensor(batch) and not error:
+# 				batch1, batch2 = None, None
+# 				while not torch.is_tensor(batch1):
+# 					try:
+# 						# start_time = time.time()
+# 						batch1 = create_homogenous_batch(video_path = video_path_1, 
+# 							model_type = model_type, device = device, batch_size = int(batch_size/2), start_frame = start_frame_1)
+# 						start_frame_1 += batch_size/2
+# 						# print("DEBUG: <get_kaggle_batch_dual> <create_homogenous_batch> elapsed time: {}".format(time.time() - start_time))
+
+# 					except IndexError as Error:
+# 						# Requested segment is invalid (goes out of bounds of video length)
+# 						error = True
+# 						break				
+# 					except AttributeError as Error:
+# 						# No faces error
+# 						print("DEBUG: {}".format(Error))
+# 						start_frame_1 += batch_size/2
+# 					except ValueError as Error:
+# 						# Multiple faces error
+# 						print("DEBUG: {}".format(Error))
+# 						# Move the file to a special folder for videos with multiple faces
+# 						misc.put_file_in_folder(file_path = video_path_1, folder = "multiple_faces")
+# 						error = True
+# 						break
+# 					except AssertionError as Error:
+# 						# Video access error
+# 						print("DEBUG: {}".format(Error))
+# 						# Move the file to a special folder for corrupt videos
+# 						misc.put_file_in_folder(file_path = video_path_1, folder = "bad_samples")
+# 						error = True
+# 						break
+# 				while not torch.is_tensor(batch2) and not error:
+# 					try:
+# 						batch2 = create_homogenous_batch(video_path = video_path_2, 
+# 							model_type = model_type, device = device, batch_size = int(batch_size/2), start_frame = start_frame_2)
+# 						start_frame_2 += batch_size/2
+
+# 					except IndexError as Error:
+# 						# Requested segment is invalid (goes out of bounds of video length)
+# 						error = True
+# 						break
+# 					except AttributeError as Error:
+# 						# No faces error
+# 						print("DEBUG: {}".format(Error))
+# 						start_frame_2 += batch_size/2
+# 					except ValueError as Error:
+# 						# Multiple faces error
+# 						print("DEBUG: {}".format(Error))
+# 						# Move the file to a special folder for videos with multiple faces
+# 						misc.put_file_in_folder(file_path = video_path_2, folder = "multiple_faces")
+# 						error = True
+# 						break
+# 					except AssertionError as Error:
+# 						# Video access error
+# 						print("DEBUG: {}".format(Error))
+# 						# Move the file to a special folder for corrupt videos
+# 						misc.put_file_in_folder(file_path = video_path_2, folder = "bad_samples")
+# 						error = True
+# 						break
+# 				if torch.is_tensor(batch1) and torch.is_tensor(batch2):
+# 					batch = torch.cat((batch1, batch2), 0)
+# 					yield batch
+	
+# 	except AssertionError:
+# 		# Move the corrupt file to a special folder for short/corrupt videos
+# 		if video_handle_1.isOpened() == False:
+# 			video_handle_1.release()
+# 			misc.put_file_in_folder(file_path = video_path_1, folder = "bad_samples")
+# 		elif video_handle_2.isOpened() == False:
+# 			video_handle_1.release()
+# 			video_handle_2.release()
+# 			misc.put_file_in_folder(file_path = video_path_2, folder = "bad_samples")
+# 		yield None
+
+
 """
 Function to retrieve a generator of batches in tensor form (Kaggle dataset)
 The batches are constructed from two seperate videos
@@ -146,76 +249,66 @@ def get_kaggle_batch_dual(video_path_1, video_path_2, model_type, device, batch_
 	# Try..Except to handle the video_handle failure case
 	try:
 		assert video_handle_1.isOpened() == True, "VideoCapture() failed to open {}".format(video_path_1)
-		video_length_1 = video_handle_1.get(7)
-		video_handle_1.release()
 		assert video_handle_2.isOpened() == True, "VideoCapture() failed to open {}".format(video_path_2)
-		video_length_2 = video_handle_2.get(7)
-		video_handle_2.release()
-		cv2.destroyAllWindows()
 
 		# Iterate through the video yielding batches of <batch_size> frames
-		start_frame_1, start_frame_2 = 0, 0
+		frame_generator_1 = opencv_helpers.yield_video_frames(video_handle_1, int(batch_size/2))
+		frame_generator_2 = opencv_helpers.yield_video_frames(video_handle_2, int(batch_size/2))
 		error = False
-		while start_frame_1 + batch_size/2 <= video_length_1 and start_frame_2 + batch_size/2 <= video_length_2 and not error:
+		while not error:
 			batch = None
 			while not torch.is_tensor(batch) and not error:
 				batch1, batch2 = None, None
 				while not torch.is_tensor(batch1):
 					try:
-						# start_time = time.time()
-						batch1 = create_homogenous_batch(video_path = video_path_1, 
-							model_type = model_type, device = device, batch_size = int(batch_size/2), start_frame = start_frame_1)
-						start_frame_1 += batch_size/2
-						# print("DEBUG: <get_kaggle_batch_dual> <create_homogenous_batch> elapsed time: {}".format(time.time() - start_time))
-
-					except IndexError as Error:
-						# Requested segment is invalid (goes out of bounds of video length)
+						batch1 = create_homogenous_batch(next(frame_generator_1), model_type = model_type, device = device)
+					# Video is done (frame_generator_1 finished)
+					except StopIteration:
+						del frame_generator_1
+						del frame_generator_2
+						video_handle_1.release()
+						video_handle_2.release()
 						error = True
-						break				
+						break
+					# No faces error
 					except AttributeError as Error:
-						# No faces error
-						print("DEBUG: {}".format(Error))
+						print(">> DEBUG: {}".format(Error))
 						start_frame_1 += batch_size/2
+					# Multiple faces error
 					except ValueError as Error:
-						# Multiple faces error
-						print("DEBUG: {}".format(Error))
+						print(">> DEBUG: {}".format(Error))
+						del frame_generator_1
+						del frame_generator_2
+						video_handle_1.release()
+						video_handle_2.release()
 						# Move the file to a special folder for videos with multiple faces
 						misc.put_file_in_folder(file_path = video_path_1, folder = "multiple_faces")
 						error = True
 						break
-					except AssertionError as Error:
-						# Video access error
-						print("DEBUG: {}".format(Error))
-						# Move the file to a special folder for corrupt videos
-						misc.put_file_in_folder(file_path = video_path_1, folder = "bad_samples")
-						error = True
-						break
-				while not torch.is_tensor(batch2):
+				while not torch.is_tensor(batch2) and not error:
 					try:
-						batch2 = create_homogenous_batch(video_path = video_path_2, 
-							model_type = model_type, device = device, batch_size = int(batch_size/2), start_frame = start_frame_2)
-						start_frame_2 += batch_size/2
-
-					except IndexError as Error:
-						# Requested segment is invalid (goes out of bounds of video length)
+						batch2 = create_homogenous_batch(next(frame_generator_2), model_type = model_type, device = device)
+					# Video is done (frame_generator_2 finished)
+					except StopIteration:
+						del frame_generator_1
+						del frame_generator_2
+						video_handle_1.release()
+						video_handle_2.release()
 						error = True
 						break
+					# No faces error
 					except AttributeError as Error:
-						# No faces error
-						print("DEBUG: {}".format(Error))
+						print(">> DEBUG: {}".format(Error))
 						start_frame_2 += batch_size/2
+					# Multiple faces error
 					except ValueError as Error:
-						# Multiple faces error
-						print("DEBUG: {}".format(Error))
+						print(">> DEBUG: {}".format(Error))
+						del frame_generator_1
+						del frame_generator_2
+						video_handle_1.release()
+						video_handle_2.release()
 						# Move the file to a special folder for videos with multiple faces
 						misc.put_file_in_folder(file_path = video_path_2, folder = "multiple_faces")
-						error = True
-						break
-					except AssertionError as Error:
-						# Video access error
-						print("DEBUG: {}".format(Error))
-						# Move the file to a special folder for corrupt videos
-						misc.put_file_in_folder(file_path = video_path_2, folder = "bad_samples")
 						error = True
 						break
 				if torch.is_tensor(batch1) and torch.is_tensor(batch2):
@@ -443,12 +536,14 @@ def train_kaggle(kaggle_dataset_path, model_name = "xception", model_weights_pat
 
 		# Each processed video/set of videos is an iteration
 		iteration = 0
-		while iteration < iterations:
+		while iteration < iterations-1:
 			video = next(videos)
 			accuracies = []
 			errors = []
 			# Get label from metadata.json
 			label = metadata[video]['label']
+
+			start_time = time.time()
 
 			if batch_type == "single":
 				# Get label tensor for this video
@@ -474,6 +569,8 @@ def train_kaggle(kaggle_dataset_path, model_name = "xception", model_weights_pat
 			else:
 				raise Exception("Invalid batch_type: {}".format(batch_type))
 
+			init_time = time.time() - start_time
+
 			# In case of <batch_type> dual, only run training if the handled video is fake and it's source video exists
 			# Otherwise, a dual batch can't be constructed from the fake and its original
 			if batch_type != "dual" or (label == "FAKE" and os.path.exists(video_path_2)): 
@@ -492,10 +589,16 @@ def train_kaggle(kaggle_dataset_path, model_name = "xception", model_weights_pat
 					torch.cuda.empty_cache()
 					# Try to get next batch
 					try:
+						# start_time_1 = time.time()
+
 						batch = next(batch_generator)
 						if not torch.is_tensor(batch):
 							# File cannot be opened
 							break
+
+						# batch_creation_time = time.time() - start_time_1
+						# start_time_2 = time.time()
+
 						network.zero_grad()
 						output = network(batch.detach())
 						if model_name == 'inception_v3':
@@ -506,6 +609,7 @@ def train_kaggle(kaggle_dataset_path, model_name = "xception", model_weights_pat
 						# Compute loss and do backpropagation
 						err = criterion(output, labels)
 						err.backward()
+
 						# Calculating accuracy for mixed samples
 						o = output.cpu().detach().numpy()
 						o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
@@ -519,8 +623,12 @@ def train_kaggle(kaggle_dataset_path, model_name = "xception", model_weights_pat
 
 						batches += 1
 
+						# network_time = time.time() - start_time_2
+						# total_batch_time = time.time() - start_time_1
 						# output_string = ">> Loss: {:3.2f} | Accuracy: {:05.2f}%".format(
 						# 	err.item(), acc)
+						# output_string = ">> DEBUG: <elapsed time> Batch: {:.3f} | Network: {:.3f} | Total: {:.3f}".format(
+						# 	batch_creation_time, network_time, total_batch_time)
 						# print(output_string)
 
 					# If there are no more sequences to retrieve or the file cannot be opened
