@@ -17,7 +17,6 @@ from models.model_helpers import get_model
 from tools import opencv_helpers
 from tools.batch import BatchGenerator
 
-
 kaggle_test_folders = [	"dfdc_train_part_45",
 						"dfdc_train_part_46",
 						"dfdc_train_part_47",
@@ -368,183 +367,383 @@ kaggle_test_folders = [	"dfdc_train_part_45",
 # 		raise Exception("Invalid batch_type: {}".format(batch_type))
 
 
-"""
-Function for training chosen model on kaggle data.
-	real_video_dirs - list of directories with real training samples (videos) 
-	fake_video_dirs - list of directories with fake training samples (videos)
-	epochs          - # of epochs to train the model
-	batch_size      - size of training batches (training will use both a real and fake batch of this size)
-	model_name      - chosen model to be trained
-	only_fc_layer   - trains all weights or only the final fully connected layer
-"""
-def train_kaggle(kaggle_dataset_path, model_name = "xception", model_weights_path = None,
-			epochs = 1, iterations = 50, batch_size = 32, batch_type = "dual", 
-			lr = 0.001, momentum = 0.9, only_fc_layer = True):
+# """
+# Function for training chosen model on kaggle data.
+# 	real_video_dirs - list of directories with real training samples (videos) 
+# 	fake_video_dirs - list of directories with fake training samples (videos)
+# 	epochs          - # of epochs to train the model
+# 	batch_size      - size of training batches (training will use both a real and fake batch of this size)
+# 	model_name      - chosen model to be trained
+# 	only_fc_layer   - trains all weights or only the final fully connected layer
+# """
+# def train_kaggle(kaggle_dataset_path, model_name = "xception", model_weights_path = None,
+# 			epochs = 1, iterations = 50, batch_size = 32, batch_type = "dual", 
+# 			lr = 0.001, momentum = 0.9, only_fc_layer = True):
 	
-	# Generator for random folder paths in real/fake video directories
-	kaggle_folders = [os.path.join(kaggle_dataset_path, x) for x in os.listdir(kaggle_dataset_path) if x not in kaggle_test_folders]
-	folder_paths = misc.get_random_folder_from_list(kaggle_folders)
-	del kaggle_folders
+# 	# Generator for random folder paths in real/fake video directories
+# 	kaggle_folders = [os.path.join(kaggle_dataset_path, x) for x in os.listdir(kaggle_dataset_path) if x not in kaggle_test_folders]
+# 	folder_paths = misc.get_random_folder_from_list(kaggle_folders)
+# 	del kaggle_folders
 
-	# Initializing mobilenet for face recognition
-	preprocessing.initialize_mobilenet()
+# 	# Initializing mobilenet for face recognition
+# 	preprocessing.initialize_mobilenet()
 
-	# Choose torch device
-	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# 	# Choose torch device
+# 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-	# Setup chosen CNN model for training
-	network = get_model(model_name, model_weights_path).to(device)
-	if only_fc_layer:
-		for param in network.parameters():
-			param.requires_grad = False
-		for param in network.fc.parameters():
-			param.requires_grad = True
+# 	# Setup chosen CNN model for training
+# 	network = get_model(model_name, model_weights_path).to(device)
+# 	if only_fc_layer:
+# 		for param in network.parameters():
+# 			param.requires_grad = False
+# 		for param in network.fc.parameters():
+# 			param.requires_grad = True
 
-	# Loss function and optimizer
-	criterion = nn.BCEWithLogitsLoss()
-	# optimizer = optim.SGD(network.fc.parameters(), lr = lr, momentum = momentum)	
-	optimizer = optim.Adam(network.fc.parameters())
+# 	# Loss function and optimizer
+# 	criterion = nn.BCEWithLogitsLoss()
+# 	# optimizer = optim.SGD(network.fc.parameters(), lr = lr, momentum = momentum)	
+# 	optimizer = optim.Adam(network.fc.parameters())
 
-	# Creating batch generator
-	BG = BatchGenerator(model_name, device, batch_size)
+# 	# Creating batch generator
+# 	BG = BatchGenerator(model_name, device, batch_size)
 
-	# Create log file
-	filename = model_name + "_kaggle"
-	filename += "_fc" if only_fc_layer else "_full"
-	log_header = "Folder,FakeVideo,RealVideo,Epoch,Iteration,Loss,Accuracy,\n"
-	log_file = misc.create_log(filename, header_string = log_header)
+# 	# Create log file
+# 	filename = model_name + "_kaggle"
+# 	filename += "_fc" if only_fc_layer else "_full"
+# 	log_header = "Folder,FakeVideo,RealVideo,Epoch,Iteration,Loss,Accuracy,\n"
+# 	log_file = misc.create_log(filename, header_string = log_header)
 	
-	# Run training loop, a folder of videos is an epoch
-	for epoch in range(epochs):
-		# Get the next folder of videos
-		folder_path = next(folder_paths, None)
-		if folder_path == None:
-			print("DEBUG: No more folders.")
-			break
-		# Possibly replace with a generator?
-		videos = os.listdir(folder_path)
-		random.shuffle(videos)
-		videos = (x for x in videos if x not in ["metadata.json", "multiple_faces", "bad_samples"])
-		metadata = os.path.join(folder_path, "metadata.json")
-		metadata = json.load(open(metadata))
+# 	# Run training loop, a folder of videos is an epoch
+# 	for epoch in range(epochs):
+# 		# Get the next folder of videos
+# 		folder_path = next(folder_paths, None)
+# 		if folder_path == None:
+# 			print("DEBUG: No more folders.")
+# 			break
+# 		# Possibly replace with a generator?
+# 		videos = os.listdir(folder_path)
+# 		random.shuffle(videos)
+# 		videos = (x for x in videos if x not in ["metadata.json", "multiple_faces", "bad_samples"])
+# 		metadata = os.path.join(folder_path, "metadata.json")
+# 		metadata = json.load(open(metadata))
 
-		# Each processed video/set of videos is an iteration
-		iteration = 0
-		while iteration <= iterations-1:
-			video = next(videos)
-			accuracies = []
-			errors = []
-			# Get label from metadata.json
-			label = metadata[video]['label']
+# 		# Each processed video/set of videos is an iteration
+# 		iteration = 0
+# 		while iteration <= iterations-1:
+# 			video = next(videos)
+# 			accuracies = []
+# 			errors = []
+# 			# Get label from metadata.json
+# 			label = metadata[video]['label']
 
-			start_time = time.time()
+# 			start_time = time.time()
 
-			if batch_type == "single":
-				# Get label tensor for this video
-				if label == 'REAL':
-					labels = torch.tensor([1]*batch_size, device = device, requires_grad = False, dtype = torch.float)
-				else:
-					labels = torch.tensor([0]*batch_size, device = device, requires_grad = False, dtype = torch.float)
-				labels = labels.view(-1,1)
-				# Get batch generator
-				video_path = os.path.join(folder_path, video)
-				batch_generator = BG.single_video_batch(video_path = video_path)
-			elif batch_type == "dual":
-				# Assert the batch_size is even
-				assert batch_size % 2 == 0, "Uneven batch_size equal to {}".format(batch_size)
-				# <batch_type> dual only constructs batches from videos with <label> FAKE
-				if label == "FAKE":
-					# Get label tensor
-					labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = device, requires_grad = False, dtype = torch.float)
+# 			if batch_type == "single":
+# 				# Get label tensor for this video
+# 				if label == 'REAL':
+# 					labels = torch.tensor([1]*batch_size, device = device, requires_grad = False, dtype = torch.float)
+# 				else:
+# 					labels = torch.tensor([0]*batch_size, device = device, requires_grad = False, dtype = torch.float)
+# 				labels = labels.view(-1,1)
+# 				# Get batch generator
+# 				video_path = os.path.join(folder_path, video)
+# 				batch_generator = BG.single_video_batch(video_path = video_path)
+# 			elif batch_type == "dual":
+# 				# Assert the batch_size is even
+# 				assert batch_size % 2 == 0, "Uneven batch_size equal to {}".format(batch_size)
+# 				# <batch_type> dual only constructs batches from videos with <label> FAKE
+# 				if label == "FAKE":
+# 					# Get label tensor
+# 					labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = device, requires_grad = False, dtype = torch.float)
+# 					labels = labels.view(-1,1)
+# 					video_path_1 = os.path.join(folder_path, video)
+# 					video_path_2 = os.path.join(folder_path, metadata[video]['original'])
+# 					batch_generator = BG.dual_video_batch(video_path_1, video_path_2)
+# 			else:
+# 				raise Exception("Invalid batch_type: {}".format(batch_type))
+
+# 			init_time = time.time() - start_time
+
+# 			# In case of <batch_type> dual, only run training if the handled video is fake and it's source video exists
+# 			# Otherwise, a dual batch can't be constructed from the fake and its original
+# 			if batch_type != "dual" or (label == "FAKE" and os.path.exists(video_path_2)): 
+# 				iteration += 1
+# 				batches = 0
+# 				# if batch_type == "single":
+# 				# 	print(">> Epoch [{}/{}] Iteration [{}] Processing: {}".format(
+# 				# 					epoch, epochs-1, iteration, os.path.join(video_path)))
+# 				# elif batch_type == "dual":
+# 				# 	print(">> Epoch [{}/{}] Iteration [{}] Processing: {} and {}".format(
+# 				# 					epoch, epochs-1, iteration, 
+# 				# 					video_path_1, video_path_2))
+
+# 				while True:
+# 					torch.cuda.empty_cache()
+# 					# Try to get next batch
+# 					try:
+# 						# start_time_1 = time.time()
+
+# 						batch = next(batch_generator)
+# 						if not torch.is_tensor(batch):
+# 							# File cannot be opened
+# 							break
+
+# 						# batch_creation_time = time.time() - start_time_1
+# 						# start_time_2 = time.time()
+
+# 						network.zero_grad()
+# 						output = network(batch.detach())
+# 						if model_name == 'inception_v3':
+# 							output = output[0]
+# 						# Delete the batch to conserve memory
+# 						del batch
+# 						torch.cuda.empty_cache()
+# 						# Compute loss and do backpropagation
+# 						err = criterion(output, labels)
+# 						err.backward()
+
+# 						# Calculating accuracy for mixed samples
+# 						o = output.cpu().detach().numpy()
+# 						o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
+# 						l = labels.cpu().detach().numpy()
+# 						acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
+# 						# Optimizer step applying gradients from results
+# 						optimizer.step()
+# 						# Add accuracy, error to lists & increment iteration
+# 						accuracies.append(acc)
+# 						errors.append(err.item())
+
+# 						batches += 1
+
+# 						# network_time = time.time() - start_time_2
+# 						# total_batch_time = time.time() - start_time_1
+# 						# output_string = ">> Loss: {:3.2f} | Accuracy: {:05.2f}%".format(
+# 						# 	err.item(), acc)
+# 						# output_string = ">> DEBUG: <elapsed time> Batch: {:.3f} | Network: {:.3f} | Total: {:.3f}".format(
+# 						# 	batch_creation_time, network_time, total_batch_time)
+# 						# print(output_string)
+
+# 					# If there are no more sequences to retrieve or the file cannot be opened
+# 					except StopIteration:
+# 						if batches > 0:
+# 							err = sum(errors)/batches
+# 							acc = sum(accuracies)/batches
+
+# 							# Write iteration results to console
+# 							output_string = ">> Epoch [{}/{}] Iteration [{}] Loss: {:3.2f} | Accuracy: {:05.2f}%".format(
+# 								epoch, epochs-1, iteration, err, acc)
+# 							print(output_string)
+
+# 							# Write iteration results to log file
+# 							log_string = "{},{},{},{},{},{:.2f},{:.2f},\n".format(
+# 								folder_path.split("\\")[-2], 
+# 								os.path.basename(video_path_1), 
+# 								os.path.basename(video_path_2), 
+# 								epoch, iteration, err, acc)
+# 							misc.add_to_log(log_file = log_file, log_string = log_string)
+# 						break
+
+# 		# Save the network after every epoch
+# 		model_filename_string = model_name + "_kaggle_" + batch_type
+# 		model_filename_string += "_fc" if only_fc_layer else "_full"
+# 		misc.save_network(network_state_dict = network.state_dict(), base_filename = model_filename_string)
+
+
+class Network:
+
+	def __init__(self, model_name = "xception", model_weights_path = None):
+		
+		# Model name
+		self.model_name = model_name
+		# Initializing mobilenet for face recognition
+		preprocessing.initialize_mobilenet()
+		# Choose torch device
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# Setup chosen CNN model
+		self.network = get_model(model_name, model_weights_path).to(self.device)
+		for param in self.network.parameters():
+				param.requires_grad = False
+		# Loss function and optimizer
+		self.criterion = nn.BCEWithLogitsLoss()
+
+
+	"""
+	Save the model weights
+		dataset_name  - dataset used for training (kaggle, face_forsensics)
+		batch_type	  - batch type used for training (single, dual)
+		only_fc_layer - training type ie. full model/only fc layer (True, False)
+	"""
+	def save_model(self, dataset_name, batch_type, only_fc_layer):
+		
+		model_dir = "models/saved_models/"
+		# Construct filename
+		filename = self.model_name + "_" + dataset_name + "_" + batch_type
+		filename += "_fc" if only_fc_layer else "_full"
+		filename += misc.timestamp() + ".pt"
+		filename = os.path.join(model_dir, filename)
+		# Save network
+		print("Saving network as '{}'".format(filename))
+		torch.save(self.network.state_dict(), filename)
+
+
+	"""
+	Function for training chosen model on kaggle data.
+		kaggle_dataset_path	- path to Kaggle DFDC dataset on local machine
+	"""
+	def train_kaggle(self, kaggle_dataset_path, 
+			epochs = 5, iterations = 50, batch_size = 10, batch_type = "dual", 
+			lr = 0.001, momentum = 0.9, only_fc_layer = False):
+		
+		# Setup gradients
+		if only_fc_layer:
+			for param in self.network.fc.parameters():
+				param.requires_grad = True
+		else:
+			for param in self.network.parameters():
+				param.requires_grad = True
+		# Creating batch generator
+		BG = BatchGenerator(self.model_name, self.device, batch_size)
+		# Initializing optimizer
+		optimizer = optim.Adam(self.network.fc.parameters())
+		# optimizer = optim.SGD(network.fc.parameters(), lr = lr, momentum = momentum)
+		# Generator for random folder paths in real/fake video directories
+		kaggle_folders = [os.path.join(kaggle_dataset_path, x) for x in os.listdir(kaggle_dataset_path) if x not in kaggle_test_folders]
+		folder_paths = misc.get_random_folder_from_list(kaggle_folders)
+		del kaggle_folders
+		# Create log file
+		filename = self.model_name + "_kaggle"
+		filename += "_fc" if only_fc_layer else "_full"
+		log_header = "Folder,FakeVideo,RealVideo,Epoch,Iteration,Loss,Accuracy,\n"
+		log_file = misc.create_log(filename, header_string = log_header)
+		
+		# Run training loop, a folder of videos is an epoch
+		for epoch in range(1, epochs+1):
+			# Get the next folder of videos
+			folder_path = next(folder_paths, None)
+			if folder_path == None:
+				print("DEBUG: No more folders.")
+				break
+			# Possibly replace with a generator?
+			videos = os.listdir(folder_path)
+			random.shuffle(videos)
+			videos = (x for x in videos if x not in ["metadata.json", "multiple_faces", "bad_samples"])
+			metadata = os.path.join(folder_path, "metadata.json")
+			metadata = json.load(open(metadata))
+
+			# Each processed video/set of videos is an iteration
+			iteration = 0
+			while iteration <= iterations-1:
+				video = next(videos)
+				accuracies = []
+				errors = []
+				# Get label from metadata.json
+				label = metadata[video]['label']
+
+				start_time = time.time()
+
+				if batch_type == "single":
+					# Get label tensor for this video
+					if label == 'REAL':
+						labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
+					else:
+						labels = torch.tensor([0]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
 					labels = labels.view(-1,1)
-					video_path_1 = os.path.join(folder_path, video)
-					video_path_2 = os.path.join(folder_path, metadata[video]['original'])
-					batch_generator = BG.dual_video_batch(video_path_1, video_path_2)
-			else:
-				raise Exception("Invalid batch_type: {}".format(batch_type))
+					# Get batch generator
+					video_path = os.path.join(folder_path, video)
+					batch_generator = BG.single_video_batch(video_path = video_path)
+				elif batch_type == "dual":
+					# Assert the batch_size is even
+					assert batch_size % 2 == 0, "Uneven batch_size equal to {}".format(batch_size)
+					# <batch_type> dual only constructs batches from videos with <label> FAKE
+					if label == "FAKE":
+						# Get label tensor
+						labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = self.device, requires_grad = False, dtype = torch.float)
+						labels = labels.view(-1,1)
+						video_path_1 = os.path.join(folder_path, video)
+						video_path_2 = os.path.join(folder_path, metadata[video]['original'])
+						batch_generator = BG.dual_video_batch(video_path_1, video_path_2)
+				else:
+					raise Exception("Invalid batch_type: {}".format(batch_type))
 
-			init_time = time.time() - start_time
+				init_time = time.time() - start_time
 
-			# In case of <batch_type> dual, only run training if the handled video is fake and it's source video exists
-			# Otherwise, a dual batch can't be constructed from the fake and its original
-			if batch_type != "dual" or (label == "FAKE" and os.path.exists(video_path_2)): 
-				iteration += 1
-				batches = 0
-				# if batch_type == "single":
-				# 	print(">> Epoch [{}/{}] Iteration [{}] Processing: {}".format(
-				# 					epoch, epochs-1, iteration, os.path.join(video_path)))
-				# elif batch_type == "dual":
-				# 	print(">> Epoch [{}/{}] Iteration [{}] Processing: {} and {}".format(
-				# 					epoch, epochs-1, iteration, 
-				# 					video_path_1, video_path_2))
+				# In case of <batch_type> dual, only run training if the handled video is fake and it's source video exists
+				# Otherwise, a dual batch can't be constructed from the fake and its original
+				if batch_type != "dual" or (label == "FAKE" and os.path.exists(video_path_2)): 
+					iteration += 1
+					batches = 0
+					# if batch_type == "single":
+					# 	print(">> Epoch [{}/{}] Iteration [{}] Processing: {}".format(
+					# 					epoch, epochs, iteration, os.path.join(video_path)))
+					# elif batch_type == "dual":
+					# 	print(">> Epoch [{}/{}] Iteration [{}] Processing: {} and {}".format(
+					# 					epoch, epochs, iteration, 
+					# 					video_path_1, video_path_2))
 
-				while True:
-					torch.cuda.empty_cache()
-					# Try to get next batch
-					try:
-						# start_time_1 = time.time()
+					while True:
+						torch.cuda.empty_cache()
+						# Try to get next batch
+						try:
+							# start_time_1 = time.time()
 
-						batch = next(batch_generator)
-						if not torch.is_tensor(batch):
-							# File cannot be opened
+							batch = next(batch_generator)
+							if not torch.is_tensor(batch):
+								# File cannot be opened
+								break
+
+							# batch_creation_time = time.time() - start_time_1
+							# start_time_2 = time.time()
+
+							self.network.zero_grad()
+							output = self.network(batch.detach())
+							if self.model_name == 'inception_v3':
+								output = output[0]
+							# Delete the batch to conserve memory
+							del batch
+							torch.cuda.empty_cache()
+							# Compute loss and do backpropagation
+							err = self.criterion(output, labels)
+							err.backward()
+
+							# Calculating accuracy for mixed samples
+							o = output.cpu().detach().numpy()
+							o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
+							l = labels.cpu().detach().numpy()
+							acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
+							# Optimizer step applying gradients from results
+							optimizer.step()
+							# Add accuracy, error to lists & increment iteration
+							accuracies.append(acc)
+							errors.append(err.item())
+
+							batches += 1
+
+							# network_time = time.time() - start_time_2
+							# total_batch_time = time.time() - start_time_1
+							# output_string = ">> Loss: {:3.2f} | Accuracy: {:05.2f}%".format(
+							# 	err.item(), acc)
+							# output_string = ">> DEBUG: <elapsed time> Batch: {:.3f} | Network: {:.3f} | Total: {:.3f}".format(
+							# 	batch_creation_time, network_time, total_batch_time)
+							# print(output_string)
+
+						# If there are no more sequences to retrieve or the file cannot be opened
+						except StopIteration:
+							if batches > 0:
+								err = sum(errors)/batches
+								acc = sum(accuracies)/batches
+
+								# Write iteration results to console
+								output_string = ">> Epoch [{}/{}] Iteration [{}] Loss: {:3.2f} | Accuracy: {:05.2f}%".format(
+									epoch, epochs, iteration, err, acc)
+								print(output_string)
+
+								# Write iteration results to log file
+								log_string = "{},{},{},{},{},{:.2f},{:.2f},\n".format(
+									folder_path.split("\\")[-2], 
+									os.path.basename(video_path_1), 
+									os.path.basename(video_path_2), 
+									epoch, iteration, err, acc)
+								misc.add_to_log(log_file = log_file, log_string = log_string)
 							break
 
-						# batch_creation_time = time.time() - start_time_1
-						# start_time_2 = time.time()
-
-						network.zero_grad()
-						output = network(batch.detach())
-						if model_name == 'inception_v3':
-							output = output[0]
-						# Delete the batch to conserve memory
-						del batch
-						torch.cuda.empty_cache()
-						# Compute loss and do backpropagation
-						err = criterion(output, labels)
-						err.backward()
-
-						# Calculating accuracy for mixed samples
-						o = output.cpu().detach().numpy()
-						o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
-						l = labels.cpu().detach().numpy()
-						acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
-						# Optimizer step applying gradients from results
-						optimizer.step()
-						# Add accuracy, error to lists & increment iteration
-						accuracies.append(acc)
-						errors.append(err.item())
-
-						batches += 1
-
-						# network_time = time.time() - start_time_2
-						# total_batch_time = time.time() - start_time_1
-						# output_string = ">> Loss: {:3.2f} | Accuracy: {:05.2f}%".format(
-						# 	err.item(), acc)
-						# output_string = ">> DEBUG: <elapsed time> Batch: {:.3f} | Network: {:.3f} | Total: {:.3f}".format(
-						# 	batch_creation_time, network_time, total_batch_time)
-						# print(output_string)
-
-					# If there are no more sequences to retrieve or the file cannot be opened
-					except StopIteration:
-						if batches > 0:
-							err = sum(errors)/batches
-							acc = sum(accuracies)/batches
-
-							# Write iteration results to console
-							output_string = ">> Epoch [{}/{}] Iteration [{}] Loss: {:3.2f} | Accuracy: {:05.2f}%".format(
-								epoch, epochs-1, iteration, err, acc)
-							print(output_string)
-
-							# Write iteration results to log file
-							log_string = "{},{},{},{},{},{:.2f},{:.2f},\n".format(
-								folder_path.split("\\")[-2], 
-								os.path.basename(video_path_1), 
-								os.path.basename(video_path_2), 
-								epoch, iteration, err, acc)
-							misc.add_to_log(log_file = log_file, log_string = log_string)
-						break
-
-		# Save the network after every epoch
-		model_filename_string = model_name + "_kaggle_" + batch_type
-		model_filename_string += "_fc" if only_fc_layer else "_full"
-		misc.save_network(network_state_dict = network.state_dict(), base_filename = model_filename_string)
+			self.save_model("kaggle", batch_type, only_fc_layer)

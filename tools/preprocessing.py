@@ -9,6 +9,7 @@ from PIL import Image
 import torch
 import time
 import tensorflow as tf
+import os
 
 from tools import opencv_helpers
 from tools.miscellaneous import put_file_in_folder
@@ -26,7 +27,8 @@ def show_test_img(test_img):
 
 def initialize_mobilenet():
 	global sess, image_tensor, boxes_tensor, scores_tensor, num_detections
-
+	os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+	
 	detection_graph = tf.Graph()
 	with detection_graph.as_default():
 		od_graph_def = tf.compat.v1.GraphDef()

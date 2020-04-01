@@ -1,9 +1,7 @@
 import os
 import random
 from datetime import datetime
-from torch import save
 
-model_dir = "models/saved_models/"
 log_dir = "outputs/logs/"
 
 
@@ -72,18 +70,6 @@ def put_file_in_folder(file_path, folder):
 		os.replace(file_path, new_path)
 	except FileNotFoundError:
 		raise FileNotFoundError("File specified by the path {} doesn't exist.".format(file_path))
-
-
-"""
-Save a PyTorch network to a file in models/saved_models/
-	network_state_dict - state dict of the network to be saved
-	model_type         - model type name
-"""
-def save_network(network_state_dict, base_filename):
-	filename = base_filename + timestamp() + ".pt"
-	filename = os.path.join(model_dir, filename)
-	print("Saving network as '{}'".format(filename))
-	save(network_state_dict, filename)
 
 
 """
