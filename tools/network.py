@@ -12,7 +12,7 @@ import random
 import time
 
 import tools.miscellaneous as misc
-from tools.preprocessing import create_homogenous_batch, create_disparate_batch
+from tools import preprocessing
 from models.model_helpers import get_model
 from tools import opencv_helpers
 
@@ -37,7 +37,7 @@ def get_homogenous_batch(video_path_generator, model_type, device, batch_size):
 	while not torch.is_tensor(batch):
 		try:
 			video_path = next(video_path_generator)
-			batch = create_homogenous_batch(video_path = video_path, 
+			batch = preprocessing.create_homogenous_batch(video_path = video_path, 
 				model_type = model_type, device = device, batch_size = batch_size)
 		except AttributeError as Error:
 			# No faces error
@@ -65,7 +65,7 @@ Function to retrieve a disparate batch in tensor form (FaceForensics dataset)
 	batch_size           - size of returned batch (# of consecutive frames from the video)
 """
 def get_disparate_batch(real_video_generator, fake_video_generator, model_type, device, batch_size):
-	batch, labels = create_disparate_batch(
+	batch, labels = preprocessing.create_disparate_batch(
 		real_video_generator = real_video_generator, fake_video_generator = fake_video_generator, model_type = model_type, device = device, batch_size = batch_size)
 
 	return batch, labels
@@ -94,7 +94,7 @@ def get_kaggle_batch_single(video_path, model_type, device, batch_size):
 			batch = None
 			while not torch.is_tensor(batch):
 				try:
-					batch = create_homogenous_batch(video_path = video_path, 
+					batch = preprocessing.create_homogenous_batch(video_path = video_path, 
 						model_type = model_type, device = device, batch_size = batch_size, start_frame = start_frame)
 					start_frame += batch_size
 					yield batch
@@ -131,108 +131,6 @@ def get_kaggle_batch_single(video_path, model_type, device, batch_size):
 		yield None
 
 
-# """
-# Function to retrieve a generator of batches in tensor form (Kaggle dataset)
-# The batches are constructed from two seperate videos
-# 	video_path_1         - path to the video from which frames will be captured
-# 	video_path_2         - path to the video from which frames will be captured
-# 	model_type           - model type name
-# 	device               - PyTorch device
-# 	batch_size           - size of returned batch (# of consecutive frames from the video)
-# """
-# def get_kaggle_batch_dual(video_path_1, video_path_2, model_type, device, batch_size):
-# 	# Open the two videos
-# 	video_handle_1 = cv2.VideoCapture(video_path_1)
-# 	video_handle_2 = cv2.VideoCapture(video_path_2)
-# 	# Try..Except to handle the video_handle failure case
-# 	try:
-# 		assert video_handle_1.isOpened() == True, "VideoCapture() failed to open {}".format(video_path_1)
-# 		video_length_1 = video_handle_1.get(7)
-# 		video_handle_1.release()
-# 		assert video_handle_2.isOpened() == True, "VideoCapture() failed to open {}".format(video_path_2)
-# 		video_length_2 = video_handle_2.get(7)
-# 		video_handle_2.release()
-
-
-# 		error = False
-# 		while start_frame_1 + batch_size/2 <= video_length_1 and start_frame_2 + batch_size/2 <= video_length_2 and not error:
-# 			batch = None
-# 			while not torch.is_tensor(batch) and not error:
-# 				batch1, batch2 = None, None
-# 				while not torch.is_tensor(batch1):
-# 					try:
-# 						# start_time = time.time()
-# 						batch1 = create_homogenous_batch(video_path = video_path_1, 
-# 							model_type = model_type, device = device, batch_size = int(batch_size/2), start_frame = start_frame_1)
-# 						start_frame_1 += batch_size/2
-# 						# print("DEBUG: <get_kaggle_batch_dual> <create_homogenous_batch> elapsed time: {}".format(time.time() - start_time))
-
-# 					except IndexError as Error:
-# 						# Requested segment is invalid (goes out of bounds of video length)
-# 						error = True
-# 						break				
-# 					except AttributeError as Error:
-# 						# No faces error
-# 						print("DEBUG: {}".format(Error))
-# 						start_frame_1 += batch_size/2
-# 					except ValueError as Error:
-# 						# Multiple faces error
-# 						print("DEBUG: {}".format(Error))
-# 						# Move the file to a special folder for videos with multiple faces
-# 						misc.put_file_in_folder(file_path = video_path_1, folder = "multiple_faces")
-# 						error = True
-# 						break
-# 					except AssertionError as Error:
-# 						# Video access error
-# 						print("DEBUG: {}".format(Error))
-# 						# Move the file to a special folder for corrupt videos
-# 						misc.put_file_in_folder(file_path = video_path_1, folder = "bad_samples")
-# 						error = True
-# 						break
-# 				while not torch.is_tensor(batch2) and not error:
-# 					try:
-# 						batch2 = create_homogenous_batch(video_path = video_path_2, 
-# 							model_type = model_type, device = device, batch_size = int(batch_size/2), start_frame = start_frame_2)
-# 						start_frame_2 += batch_size/2
-
-# 					except IndexError as Error:
-# 						# Requested segment is invalid (goes out of bounds of video length)
-# 						error = True
-# 						break
-# 					except AttributeError as Error:
-# 						# No faces error
-# 						print("DEBUG: {}".format(Error))
-# 						start_frame_2 += batch_size/2
-# 					except ValueError as Error:
-# 						# Multiple faces error
-# 						print("DEBUG: {}".format(Error))
-# 						# Move the file to a special folder for videos with multiple faces
-# 						misc.put_file_in_folder(file_path = video_path_2, folder = "multiple_faces")
-# 						error = True
-# 						break
-# 					except AssertionError as Error:
-# 						# Video access error
-# 						print("DEBUG: {}".format(Error))
-# 						# Move the file to a special folder for corrupt videos
-# 						misc.put_file_in_folder(file_path = video_path_2, folder = "bad_samples")
-# 						error = True
-# 						break
-# 				if torch.is_tensor(batch1) and torch.is_tensor(batch2):
-# 					batch = torch.cat((batch1, batch2), 0)
-# 					yield batch
-	
-# 	except AssertionError:
-# 		# Move the corrupt file to a special folder for short/corrupt videos
-# 		if video_handle_1.isOpened() == False:
-# 			video_handle_1.release()
-# 			misc.put_file_in_folder(file_path = video_path_1, folder = "bad_samples")
-# 		elif video_handle_2.isOpened() == False:
-# 			video_handle_1.release()
-# 			video_handle_2.release()
-# 			misc.put_file_in_folder(file_path = video_path_2, folder = "bad_samples")
-# 		yield None
-
-
 """
 Function to retrieve a generator of batches in tensor form (Kaggle dataset)
 The batches are constructed from two seperate videos
@@ -261,7 +159,7 @@ def get_kaggle_batch_dual(video_path_1, video_path_2, model_type, device, batch_
 				batch1, batch2 = None, None
 				while not torch.is_tensor(batch1):
 					try:
-						batch1 = create_homogenous_batch(next(frame_generator_1), model_type = model_type, device = device)
+						batch1 = preprocessing.create_homogenous_batch(next(frame_generator_1), model_type = model_type, device = device)
 					# Video is done (frame_generator_1 finished)
 					except StopIteration:
 						del frame_generator_1
@@ -273,7 +171,6 @@ def get_kaggle_batch_dual(video_path_1, video_path_2, model_type, device, batch_
 					# No faces error
 					except AttributeError as Error:
 						print(">> DEBUG: {}".format(Error))
-						start_frame_1 += batch_size/2
 					# Multiple faces error
 					except ValueError as Error:
 						print(">> DEBUG: {}".format(Error))
@@ -287,7 +184,7 @@ def get_kaggle_batch_dual(video_path_1, video_path_2, model_type, device, batch_
 						break
 				while not torch.is_tensor(batch2) and not error:
 					try:
-						batch2 = create_homogenous_batch(next(frame_generator_2), model_type = model_type, device = device)
+						batch2 = preprocessing.create_homogenous_batch(next(frame_generator_2), model_type = model_type, device = device)
 					# Video is done (frame_generator_2 finished)
 					except StopIteration:
 						del frame_generator_1
@@ -299,7 +196,6 @@ def get_kaggle_batch_dual(video_path_1, video_path_2, model_type, device, batch_
 					# No faces error
 					except AttributeError as Error:
 						print(">> DEBUG: {}".format(Error))
-						start_frame_2 += batch_size/2
 					# Multiple faces error
 					except ValueError as Error:
 						print(">> DEBUG: {}".format(Error))
@@ -346,16 +242,13 @@ def train_faceforensics(real_video_dirs, fake_video_dirs, model_name = "xception
 	# Pytorch device
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-	# Setup chosen CNN model for training of FC layer
+	# Setup chosen CNN model for training
 	network = get_model(model_name, model_weights_path).to(device)
-	
-	for param in network.parameters():
-		param.requires_grad = False
-	if not only_fc_layer:
-		for param in network.conv4.parameters():
+	if only_fc_layer:
+		for param in network.parameters():
+			param.requires_grad = False
+		for param in network.fc.parameters():
 			param.requires_grad = True
-	for param in network.fc.parameters():
-		param.requires_grad = True
 
 	# Loss function and optimizer
 	criterion = nn.BCEWithLogitsLoss()
@@ -492,19 +385,14 @@ def train_kaggle(kaggle_dataset_path, model_name = "xception", model_weights_pat
 	folder_paths = misc.get_random_folder_from_list(kaggle_folders)
 	del kaggle_folders
 
+	# Initializing mobilenet for face recognition
+	preprocessing.initialize_mobilenet()
+
 	# Choose torch device
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-	# Setup chosen CNN model for training of FC layer
+	# Setup chosen CNN model for training
 	network = get_model(model_name, model_weights_path).to(device)
-	
-	# for param in network.parameters():
-	# 	param.requires_grad = False
-	# if not only_fc_layer:
-	# 	for param in network.conv4.parameters():
-	# 		param.requires_grad = True
-	# for param in network.fc.parameters():
-	# 	param.requires_grad = True
 	if only_fc_layer:
 		for param in network.parameters():
 			param.requires_grad = False

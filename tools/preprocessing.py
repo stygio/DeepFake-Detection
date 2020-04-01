@@ -8,30 +8,14 @@ import cv2
 from PIL import Image
 import torch
 import time
+import tensorflow as tf
 
 from tools import opencv_helpers
 from tools.miscellaneous import put_file_in_folder
 from models import transform
 
-import tensorflow as tf
-# tf.logging.set_verbosity(tf.logging.FATAL)
-detection_graph = tf.Graph()
-with detection_graph.as_default():
-	od_graph_def = tf.compat.v1.GraphDef()
-	with tf.io.gfile.GFile('models/mobilenet_face/frozen_inference_graph_face.pb', 'rb') as fid:
-		serialized_graph = fid.read()
-		od_graph_def.ParseFromString(serialized_graph)
-		tf.import_graph_def(od_graph_def, name='')
-	config = tf.compat.v1.ConfigProto()
-	config.gpu_options.allow_growth = False
-	config.gpu_options.per_process_gpu_memory_fraction=0.333
-	sess=tf.compat.v1.Session(graph=detection_graph, config=config)
-	image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
-	boxes_tensor = detection_graph.get_tensor_by_name('detection_boxes:0')    
-	scores_tensor = detection_graph.get_tensor_by_name('detection_scores:0')
-	num_detections = detection_graph.get_tensor_by_name('num_detections:0')
-
 crop_factor = 1.3
+sess, image_tensor, boxes_tensor, scores_tensor, num_detections = None, None, None, None, None
 
 
 def show_test_img(test_img):
@@ -40,20 +24,24 @@ def show_test_img(test_img):
 	cv2.destroyAllWindows()
 
 
-# def get_mobilenet_face(image):
-#     # global boxes,scores,num_detections
-#     (im_height,im_width)=image.shape[:-1]
-#     imgs=np.array([image])
-#     (boxes, scores) = sess.run(
-#         [boxes_tensor, scores_tensor],
-#         feed_dict={image_tensor: imgs})
-#     max_=np.where(scores==scores.max())[0][0]
-#     box=boxes[0][max_]
-#     ymin, xmin, ymax, xmax = box
-#     (left, right, top, bottom) = (xmin * im_width, xmax * im_width,
-#                                 ymin * im_height, ymax * im_height)
-#     left, right, top, bottom = int(left), int(right), int(top), int(bottom)
-#     return (top, right, bottom, left)
+def initialize_mobilenet():
+	global sess, image_tensor, boxes_tensor, scores_tensor, num_detections
+
+	detection_graph = tf.Graph()
+	with detection_graph.as_default():
+		od_graph_def = tf.compat.v1.GraphDef()
+		with tf.io.gfile.GFile('models/mobilenet_face/frozen_inference_graph_face.pb', 'rb') as fid:
+			serialized_graph = fid.read()
+			od_graph_def.ParseFromString(serialized_graph)
+			tf.import_graph_def(od_graph_def, name='')
+		config = tf.compat.v1.ConfigProto()
+		config.gpu_options.allow_growth = False
+		config.gpu_options.per_process_gpu_memory_fraction=0.333
+		sess = tf.compat.v1.Session(graph=detection_graph, config=config)
+		image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
+		boxes_tensor = detection_graph.get_tensor_by_name('detection_boxes:0')    
+		scores_tensor = detection_graph.get_tensor_by_name('detection_scores:0')
+		num_detections = detection_graph.get_tensor_by_name('num_detections:0')
 
 
 def get_mobilenet_faces(image):
