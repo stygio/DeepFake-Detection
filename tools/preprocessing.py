@@ -36,7 +36,7 @@ def initialize_mobilenet():
 			tf.import_graph_def(od_graph_def, name='')
 		config = tf.compat.v1.ConfigProto()
 		config.gpu_options.allow_growth = False
-		config.gpu_options.per_process_gpu_memory_fraction=0.333
+		config.gpu_options.per_process_gpu_memory_fraction=0.4
 		sess = tf.compat.v1.Session(graph=detection_graph, config=config)
 		image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
 		boxes_tensor = detection_graph.get_tensor_by_name('detection_boxes:0')    

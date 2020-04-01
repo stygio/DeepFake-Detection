@@ -24,6 +24,6 @@ def test_training_ff():
 
 def test_training_kaggle():
 	train_kaggle(kaggle_path, model_name = "xception", model_weights_path = None, 
-		batch_size = 4, epochs = 10, lr = 0.001, only_fc_layer = False)
+		epochs = 10, iterations = 50, batch_size = 8, lr = 0.001, only_fc_layer = False)
 
 test_training_kaggle()

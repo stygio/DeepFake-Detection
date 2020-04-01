@@ -4,6 +4,7 @@ from datetime import datetime
 from torch import save
 
 model_dir = "models/saved_models/"
+log_dir = "outputs/logs/"
 
 
 # Return a string with current timestamp
@@ -78,8 +79,8 @@ Save a PyTorch network to a file in models/saved_models/
 	network_state_dict - state dict of the network to be saved
 	model_type         - model type name
 """
-def save_network(network_state_dict, model_type, training_dataset):
-	filename = model_type + "_" + training_dataset + timestamp() + ".pt"
+def save_network(network_state_dict, base_filename):
+	filename = base_filename + timestamp() + ".pt"
 	filename = os.path.join(model_dir, filename)
 	print("Saving network as '{}'".format(filename))
 	save(network_state_dict, filename)
@@ -90,9 +91,8 @@ Creates a log file and returns the path to it
 	model_type    - model type name
 	header_string - string which will be at the top of the log file
 """
-def create_log(model_type, lr, momentum, header_string):
-	log_dir = "outputs/logs/"
-	filename = model_type + "_lr{}_m{}".format(lr, momentum) + timestamp() + ".csv"
+def create_log(base_filename, header_string):
+	filename = base_filename + timestamp() + ".csv"
 	filename = os.path.join(log_dir, filename)
 	f = open(filename, "w+")
 	f.write(header_string)
