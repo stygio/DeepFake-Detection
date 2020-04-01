@@ -6,7 +6,7 @@ import numpy as np
 import random
 import cv2
 from PIL import Image
-import face_recognition
+# import face_recognition
 import torch
 import time
 
@@ -15,7 +15,7 @@ from tools.miscellaneous import put_file_in_folder
 from models import transform
 
 import tensorflow as tf
-tf.logging.set_verbosity(tf.logging.FATAL)
+# tf.logging.set_verbosity(tf.logging.FATAL)
 detection_graph = tf.Graph()
 with detection_graph.as_default():
 	od_graph_def = tf.compat.v1.GraphDef()
