@@ -6,7 +6,6 @@ import numpy as np
 import random
 import cv2
 from PIL import Image
-# import face_recognition
 import torch
 import time
 
@@ -110,11 +109,7 @@ def get_faces(img, isPath = False):
 	
 	# Acquire face_locations, which is a list of tuples with locations
 	# of bounding boxes specified as (top, right, bottom, left)
-	# start_time = time.time()
-	# face_locations = face_recognition.face_locations(rgb_img, model="cnn")
-	# print('DEBUG: <get_faces> <face_recognition> time: {:2f}'.format(time.time() - start_time))
 	face_locations = get_mobilenet_faces(rgb_img)
-	# print('DEBUG: <get_mobilenet_faces> time: {:2f}'.format(time.time() - start_time))
 
 	faces = []
 	face_positions = []
