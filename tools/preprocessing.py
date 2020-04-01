@@ -134,20 +134,20 @@ def get_faces(img, isPath = False):
 		# print("DEBUG: crop_height: {}, crop_width: {}, crop_diff: {}".format(crop_height, crop_width, crop_diff))
 		# print("DEBUG: top: {}, bottom: {}, left: {}, right: {}".format(top, bottom, left, right))
 
-		# Handle cases where the new box will extend beyond image dimensions, requiring padding
-		(crop_height, crop_width, _) = np.shape(cropped_img)
-		if top < 0:
-			padding = np.zeros((abs(top), crop_width, 3), dtype = "uint8")
-			cropped_img = cv2.vconcat([padding, cropped_img])
-		elif left < 0:
-			padding = np.zeros((crop_height, abs(left), 3), dtype = "uint8")
-			cropped_img = cv2.hconcat([padding, cropped_img])
-		elif bottom > img_height-1:
-			padding = np.zeros((bottom - (img_height-1), crop_width, 3), dtype = "uint8")
-			cropped_img = cv2.vconcat([cropped_img, padding])
-		elif right > img_width-1:
-			padding = np.zeros((crop_height, right - (img_width-1), 3), dtype = "uint8")
-			cropped_img = cv2.hconcat([padding, cropped_img])
+		# # Handle cases where the new box will extend beyond image dimensions, requiring padding
+		# (crop_height, crop_width, _) = np.shape(cropped_img)
+		# if top < 0:
+		# 	padding = np.zeros((abs(top), crop_width, 3), dtype = "uint8")
+		# 	cropped_img = cv2.vconcat([padding, cropped_img])
+		# elif left < 0:
+		# 	padding = np.zeros((crop_height, abs(left), 3), dtype = "uint8")
+		# 	cropped_img = cv2.hconcat([padding, cropped_img])
+		# elif bottom > img_height-1:
+		# 	padding = np.zeros((bottom - (img_height-1), crop_width, 3), dtype = "uint8")
+		# 	cropped_img = cv2.vconcat([cropped_img, padding])
+		# elif right > img_width-1:
+		# 	padding = np.zeros((crop_height, right - (img_width-1), 3), dtype = "uint8")
+		# 	cropped_img = cv2.hconcat([padding, cropped_img])
 
 		if np.shape(cropped_img[0]) != np.shape(cropped_img[1]):
 			print("DEBUG: Cropped image is not a square! Shape: {}".format(np.shape(cropped_img)))
@@ -162,132 +162,132 @@ def get_faces(img, isPath = False):
 	return faces, face_positions
 
 
-# Create a batch of face images from a point in the video
-def create_homogenous_batch_chosen_video_segment(video_path, model_type, device, batch_size, start_frame = None):
-	tensor_transform = transform.model_transforms[model_type]
+# # Create a batch of face images from a point in the video
+# def create_homogenous_batch_chosen_video_segment(video_path, model_type, device, batch_size, start_frame = None):
+# 	tensor_transform = transform.model_transforms[model_type]
 
-	video_handle = cv2.VideoCapture(video_path)
-	# Try..Except to handle the video_handle failure case
-	try:
-		assert video_handle.isOpened() == True, "VideoCapture() failed to open the video"
-		video_length = video_handle.get(7)
-		# If start_frame is not given choose random start_frame in the range of the video length in frames
-		if start_frame == None:
-			start_frame = random.randint(0, (video_length - 1) - batch_size)
-		else:
-			if not start_frame + batch_size <= video_length:
-				raise IndexError("Requested segment of video is too long: last_frame {} > video length {}".format(
-					start_frame + batch_size, video_length))
+# 	video_handle = cv2.VideoCapture(video_path)
+# 	# Try..Except to handle the video_handle failure case
+# 	try:
+# 		assert video_handle.isOpened() == True, "VideoCapture() failed to open the video"
+# 		video_length = video_handle.get(7)
+# 		# If start_frame is not given choose random start_frame in the range of the video length in frames
+# 		if start_frame == None:
+# 			start_frame = random.randint(0, (video_length - 1) - batch_size)
+# 		else:
+# 			if not start_frame + batch_size <= video_length:
+# 				raise IndexError("Requested segment of video is too long: last_frame {} > video length {}".format(
+# 					start_frame + batch_size, video_length))
 
-		# Grab a frame sequence
-		start_time = time.time()
-		frames = opencv_helpers.loadFrameSequence(video_handle, start_frame, sequence_length = batch_size)
-		video_handle.release()
-		print('DEBUG: <loadFrameSequence> elapsed time: {:.2f}'.format(time.time() - start_time))
-		# Process the frames to retrieve only the faces, and construct the batch
-		batch = []
-		for frame in frames:
-			# Retrieve detected faces and their positions. Throw an <AssertionError> in case of no detected faces.
-			faces, face_positions = [], []
-			try:
-				# start_time = time.time()
-				faces, face_positions = get_faces(frame)
-				# print('DEBUG: <create_homogenous_batch> <get_faces> elapsed time: {:.2f}'.format(time.time() - start_time))
-			except AssertionError:
-				raise AttributeError("No faces detected in {}".format(video_path))
-			# Check whether 1 face was detected. If more - throw a ValueError
-			if len(face_positions) == 1:
-				tensor_img = tensor_transform(Image.fromarray(faces[0]))
-				batch.append(tensor_img)
-			else:
-				# ToDo: Multiple faces, choose closest one
-				raise ValueError("Multiple faces detected in {}".format(video_path))
-	except:
-		# An error occured
-		video_handle.release()
-		raise
+# 		# Grab a frame sequence
+# 		start_time = time.time()
+# 		frames = opencv_helpers.loadFrameSequence(video_handle, start_frame, sequence_length = batch_size)
+# 		video_handle.release()
+# 		print('DEBUG: <loadFrameSequence> elapsed time: {:.2f}'.format(time.time() - start_time))
+# 		# Process the frames to retrieve only the faces, and construct the batch
+# 		batch = []
+# 		for frame in frames:
+# 			# Retrieve detected faces and their positions. Throw an <AssertionError> in case of no detected faces.
+# 			faces, face_positions = [], []
+# 			try:
+# 				# start_time = time.time()
+# 				faces, face_positions = get_faces(frame)
+# 				# print('DEBUG: <create_homogenous_batch> <get_faces> elapsed time: {:.2f}'.format(time.time() - start_time))
+# 			except AssertionError:
+# 				raise AttributeError("No faces detected in {}".format(video_path))
+# 			# Check whether 1 face was detected. If more - throw a ValueError
+# 			if len(face_positions) == 1:
+# 				tensor_img = tensor_transform(Image.fromarray(faces[0]))
+# 				batch.append(tensor_img)
+# 			else:
+# 				# ToDo: Multiple faces, choose closest one
+# 				raise ValueError("Multiple faces detected in {}".format(video_path))
+# 	except:
+# 		# An error occured
+# 		video_handle.release()
+# 		raise
 
-	# Stack list of tensors into a single tensor on device
-	batch = torch.stack(batch).to(device)
-	return batch
-
-
-# Create a batch of face images from a point in the video
-def create_homogenous_batch(video_frames, model_type, device):
-	tensor_transform = transform.model_transforms[model_type]
-	# Process the frames to retrieve only the faces, and construct the batch
-	batch = []
-	for frame in video_frames:
-		# Retrieve detected faces and their positions. Throw an <AssertionError> in case of no detected faces.
-		faces, face_positions = [], []
-		try:
-			faces, face_positions = get_faces(frame)
-		except AssertionError as Error:
-			raise AttributeError("No faces detected.")
-		# Check whether 1 face was detected. If more - throw a ValueError
-		if len(face_positions) == 1:
-			tensor_img = tensor_transform(Image.fromarray(faces[0]))
-			batch.append(tensor_img)
-		else:
-			raise ValueError("Multiple faces detected.")
-
-	# Stack list of tensors into a single tensor on device
-	batch = torch.stack(batch).to(device)
-	return batch
+# 	# Stack list of tensors into a single tensor on device
+# 	batch = torch.stack(batch).to(device)
+# 	return batch
 
 
-# Create a batch of face images from various videos
-def create_disparate_batch(real_video_generator, fake_video_generator, model_type, device, batch_size = 16):
-	tensor_transform = transform.model_transforms[model_type]
+# # Create a batch of face images from a point in the video
+# def create_homogenous_batch(video_frames, model_type, device):
+# 	tensor_transform = transform.model_transforms[model_type]
+# 	# Process the frames to retrieve only the faces, and construct the batch
+# 	batch = []
+# 	for frame in video_frames:
+# 		# Retrieve detected faces and their positions. Throw an <AssertionError> in case of no detected faces.
+# 		faces, face_positions = [], []
+# 		try:
+# 			faces, face_positions = get_faces(frame)
+# 		except AssertionError as Error:
+# 			raise AttributeError("No faces detected.")
+# 		# Check whether 1 face was detected. If more - throw a ValueError
+# 		if len(face_positions) == 1:
+# 			tensor_img = tensor_transform(Image.fromarray(faces[0]))
+# 			batch.append(tensor_img)
+# 		else:
+# 			raise ValueError("Multiple faces detected.")
 
-	# Process the frames to retrieve only the faces, and construct the batch
-	batch = []
-	labels = []
-	while len(batch) < batch_size:
-		video_path = None
-		label = None
-		if random.random() < 0.5:
-			video_path = next(real_video_generator)
-			label = 1
-		else:
-			video_path = next(fake_video_generator)
-			label = 0
+# 	# Stack list of tensors into a single tensor on device
+# 	batch = torch.stack(batch).to(device)
+# 	return batch
 
-		# Grab a frame
-		video_handle = cv2.VideoCapture(video_path)
-		if (video_handle.isOpened() == True):
-			# VideoCapture() succesfully opened the video
-			video_length = video_handle.get(7)
-			frame = opencv_helpers.getRandomFrame(video_handle)
-			video_handle.release()
-			cv2.destroyAllWindows()
 
-			# Retrieve detected faces and their positions. Throw an <AssertionError> in case of no detected faces.
-			faces, face_positions = [], []
-			try:
-				faces, face_positions = get_faces(frame)
-			except AssertionError:
-				print("No faces detected in {}".format(video_path))
-			# Check whether 1 face was detected. If more - throw a ValueError
-			if len(face_positions) == 1:
-				tensor_img = tensor_transform(Image.fromarray(faces[0]))
-				batch.append(tensor_img)
-				labels.append(label)
-			elif len(face_positions) >= 2:
-				# ToDo: Multiple faces, choose closest one
-				print("Multiple faces detected in {}".format(video_path))
-				put_file_in_folder(file_path = video_path, folder = "multiple_faces")
-		else:
-			# VideoCapture() failed to open the video
-			print("VideoCapture() failed to open {}".format(video_path))
-			video_handle.release()
-			cv2.destroyAllWindows()
-			put_file_in_folder(file_path = video_path, folder = "bad_samples")
+# # Create a batch of face images from various videos
+# def create_disparate_batch(real_video_generator, fake_video_generator, model_type, device, batch_size = 16):
+# 	tensor_transform = transform.model_transforms[model_type]
 
-	# Stack list of tensors into a single tensor on device
-	batch = torch.stack(batch).to(device)
-	# Create label tensor
-	labels = torch.tensor(labels, device = device, requires_grad = False, dtype = torch.float)
-	labels = labels.view(-1,1)
+# 	# Process the frames to retrieve only the faces, and construct the batch
+# 	batch = []
+# 	labels = []
+# 	while len(batch) < batch_size:
+# 		video_path = None
+# 		label = None
+# 		if random.random() < 0.5:
+# 			video_path = next(real_video_generator)
+# 			label = 1
+# 		else:
+# 			video_path = next(fake_video_generator)
+# 			label = 0
+
+# 		# Grab a frame
+# 		video_handle = cv2.VideoCapture(video_path)
+# 		if (video_handle.isOpened() == True):
+# 			# VideoCapture() succesfully opened the video
+# 			video_length = video_handle.get(7)
+# 			frame = opencv_helpers.getRandomFrame(video_handle)
+# 			video_handle.release()
+# 			cv2.destroyAllWindows()
+
+# 			# Retrieve detected faces and their positions. Throw an <AssertionError> in case of no detected faces.
+# 			faces, face_positions = [], []
+# 			try:
+# 				faces, face_positions = get_faces(frame)
+# 			except AssertionError:
+# 				print("No faces detected in {}".format(video_path))
+# 			# Check whether 1 face was detected. If more - throw a ValueError
+# 			if len(face_positions) == 1:
+# 				tensor_img = tensor_transform(Image.fromarray(faces[0]))
+# 				batch.append(tensor_img)
+# 				labels.append(label)
+# 			elif len(face_positions) >= 2:
+# 				# ToDo: Multiple faces, choose closest one
+# 				print("Multiple faces detected in {}".format(video_path))
+# 				put_file_in_folder(file_path = video_path, folder = "multiple_faces")
+# 		else:
+# 			# VideoCapture() failed to open the video
+# 			print("VideoCapture() failed to open {}".format(video_path))
+# 			video_handle.release()
+# 			cv2.destroyAllWindows()
+# 			put_file_in_folder(file_path = video_path, folder = "bad_samples")
+
+# 	# Stack list of tensors into a single tensor on device
+# 	batch = torch.stack(batch).to(device)
+# 	# Create label tensor
+# 	labels = torch.tensor(labels, device = device, requires_grad = False, dtype = torch.float)
+# 	labels = labels.view(-1,1)
 	
-	return batch, labels
+# 	return batch, labels
