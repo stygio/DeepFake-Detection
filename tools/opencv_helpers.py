@@ -43,13 +43,6 @@ def loadFrameSequence(video_handle, start_frame, sequence_length, is_color = Tru
 
 	current_frame = start_frame
 	video_handle.set(1, current_frame)	#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
-	# frame = getFrame(video_handle)
-	# if not is_color:
-	# 	frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-	# frame = np.expand_dims(frame, axis=0)
-	# frame_sequence = frame
-	# while current_frame < start_frame + sequence_length - 1:
-	# 	current_frame += 1
 	frame_sequence = []
 	for _ in range(sequence_length):
 		frame = getFrame(video_handle)

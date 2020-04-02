@@ -8,6 +8,7 @@ from tools import preprocessing, opencv_helpers
 import tools.miscellaneous as misc
 
 class BatchGenerator:
+	
 	def __init__(self, model_type, device, batch_size):
 		self.tensor_transform = transform.model_transforms[model_type]
 		self.device = device
