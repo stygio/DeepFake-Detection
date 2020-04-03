@@ -1,7 +1,6 @@
 import argparse
-from os.path import isdir
+from os.path import isdir, isfile
 
-import tools.miscellaneous as misc
 from tools.network import Network
 
 # real_vid_dirs = [	"D:\\FaceForensics_Dataset\\original_sequences\\c23\\videos"]
@@ -16,13 +15,11 @@ from tools.network import Network
 # no_face_vp = "C:\\Users\\Andrzej\\Videos\\MazeEscape\\Maze1.mp4"
 # two_face_vp = "D:\\FaceForensics_Dataset\\original_sequences\\c23\\videos\\01__walking_and_outside_surprised.mp4"
 
-kaggle_path = "D:\\Kaggle_Dataset"
+# kaggle_path = "D:\\Kaggle_Dataset"
 
-def test_training_kaggle():
-	net = Network(model_name = "xception", model_weights_path = None)
-	net.train_kaggle(kaggle_path, epochs = 10, iterations = 50, batch_size = 10, only_fc_layer = False)
 
 if __name__ == '__main__':
+
 	p = argparse.ArgumentParser(
 		description = "DeepFake-Detection by Andrzej Putyra: Detecting facial manipulations in video.",
 		formatter_class = argparse.ArgumentDefaultsHelpFormatter)
@@ -39,6 +36,8 @@ if __name__ == '__main__':
 	mode = args.mode
 	model_name = args.model_name
 	model_path = args.model_path
+	if not (model_path == None or isfile(model_path)):
+			raise Exception("Invalid model path '{}'".format(model_path)) 
 
 	if mode == 'train':
 		dataset_name 	= str(	input("Dataset name {kaggle, face_forensics}: "))
@@ -58,10 +57,13 @@ if __name__ == '__main__':
 		if only_fc_layer not in ['True', 'False']:
 			raise Exception("Invalid choice for only_fc_layer '{}'".format(only_fc_layer))
 		only_fc_layer = True if only_fc_layer == 'True' else False
+
+		net = Network(model_name = model_name, model_weights_path = model_path)
+		net.train_kaggle(dataset_path, epochs, iterations, batch_size, batch_type, only_fc_layer = only_fc_layer)
 	
 	elif mode == 'test':
-		pass
+		print("To be implemeneted in a future release.")
 	
 	elif mode == 'detect':
-		pass
+		print("To be implemeneted in a future release.")
 
