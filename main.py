@@ -62,7 +62,8 @@ if __name__ == '__main__':
 		net.train_kaggle(dataset_path, epochs, iterations, batch_size, batch_type, only_fc_layer = only_fc_layer)
 	
 	elif mode == 'test':
-		print("To be implemeneted in a future release.")
+		net = Network(model_name = model_name, model_weights_path = model_path)
+		net.evaluate_kaggle("D:/Kaggle_Dataset", batch_size = 10)
 	
 	elif mode == 'detect':
 		print("To be implemeneted in a future release.")

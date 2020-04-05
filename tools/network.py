@@ -14,7 +14,6 @@ import time
 import tools.miscellaneous as misc
 from tools import preprocessing
 from models.model_helpers import get_model
-from tools import opencv_helpers
 from tools.batch import BatchGenerator
 
 kaggle_test_folders = [	"dfdc_train_part_45",
@@ -293,7 +292,7 @@ class Network:
 					batches = 0
 					# if batch_type == "single":
 					# 	print(">> Epoch [{}/{}] Iteration [{}] Processing: {}".format(
-					# 					epoch, epochs, iteration, os.path.join(video_path)))
+					# 					epoch, epochs, iteration, video_path))
 					# elif batch_type == "dual":
 					# 	print(">> Epoch [{}/{}] Iteration [{}] Processing: {} and {}".format(
 					# 					epoch, epochs, iteration, 
@@ -306,9 +305,6 @@ class Network:
 							# start_time_1 = time.time()
 
 							batch = next(batch_generator)
-							if not torch.is_tensor(batch):
-								# File cannot be opened
-								break
 
 							# batch_creation_time = time.time() - start_time_1
 							# start_time_2 = time.time()
@@ -366,3 +362,89 @@ class Network:
 							break
 
 			self.save_model("kaggle", batch_type, only_fc_layer)
+
+
+	def evaluate_kaggle(self, kaggle_dataset_path, batch_size, iterations = 20):
+
+		# Creating batch generator
+		BG = BatchGenerator(self.model_name, self.device, batch_size)
+		# Generator for random folder paths in real/fake video directories
+		folder_paths = [os.path.join(kaggle_dataset_path, x) for x in kaggle_test_folders]
+
+		test_loss = []
+		test_acc = []
+		sample_nr = 0
+
+		# Run training loop, a folder of videos is an epoch
+		for folder_path in folder_paths:
+			# Possibly replace with a generator?
+			videos = os.listdir(folder_path)
+			random.shuffle(videos)
+			videos = (x for x in videos if x not in ["metadata.json", "multiple_faces", "bad_samples"])
+			metadata = os.path.join(folder_path, "metadata.json")
+			metadata = json.load(open(metadata))
+
+			for _ in range(iterations):
+				video = next(videos)
+				sample_nr += 1
+				accuracies = []
+				errors = []
+				# Get label from metadata.json
+				label = metadata[video]['label']
+
+				if label == 'REAL':
+					labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
+				else:
+					labels = torch.tensor([0]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
+				labels = labels.view(-1,1)
+				# Get batch generator
+				video_path = os.path.join(folder_path, video)
+				batch_generator = BG.single_video_batch(video_path = video_path)
+
+				batches = 0
+				while True:
+					torch.cuda.empty_cache()
+					# Try to get next batch
+					try:
+						batch = next(batch_generator)
+
+						output = self.network(batch.detach())
+						if self.model_name == 'inception_v3':
+							output = output[0]
+						# Delete the batch to conserve memory
+						del batch
+						torch.cuda.empty_cache()
+						# Compute loss
+						err = self.criterion(output, labels)
+
+						# Calculating accuracy for mixed samples
+						o = output.cpu().detach().numpy()
+						o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
+						l = labels.cpu().detach().numpy()
+						acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
+						# Add accuracy, error to lists
+						errors.append(err.item())
+						accuracies.append(acc)
+
+						batches += 1
+
+					# If there are no more sequences to retrieve or the file cannot be opened
+					except StopIteration:
+						if batches > 0:
+							err = sum(errors)/batches
+							acc = sum(accuracies)/batches
+
+							test_loss.append(err)
+							test_acc.append(acc)
+
+							# Write iteration results to console
+							output_string = ">> Test sample [{}] Loss: {:3.2f} | Accuracy: {:05.2f}%".format(
+								sample_nr, err, acc)
+							print(output_string)
+						break
+
+		test_loss = sum(test_loss) / len(test_loss)
+		test_acc = sum(test_acc) / len(test_acc)
+		print("Evaluation result: Loss: {} | Accuracy: {}".format(test_loss, test_acc))
+		return test_loss, test_acc
+

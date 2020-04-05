@@ -5,6 +5,7 @@ import time
 
 from models import transform
 from tools import preprocessing, opencv_helpers
+from tools.custom_errors import NoFaceDetected, MultipleFacesDetected, CorruptVideoError
 import tools.miscellaneous as misc
 
 class BatchGenerator:
@@ -184,28 +185,26 @@ class BatchGenerator:
 		video_path           - path to the video from which frames will be captured
 	"""
 	def single_video_batch(self, video_path):
+		# Open the video
 		video_handle = cv2.VideoCapture(video_path)
-		# Try..Except to handle the video_handle failure case
 		try:
-			assert video_handle.isOpened() == True, "VideoCapture() failed to open {}".format(video_path)
-			frame_generator = opencv_helpers.yield_video_frames(video_handle, self.batch_size)
+			# Check that video was opened correctly
+			if video_handle.isOpened() == False:
+				raise CorruptVideoError("cv2.VideoCapture() failed to open {}".format(video_path))
 
+			# Generator for consecutive sequences of <batch_size> frames
+			frame_generator = opencv_helpers.yield_video_frames(video_handle, int(self.batch_size))
 			# Iterate through the video yielding batches of <batch_size> frames
 			error = False
 			while not error:
 				batch = None
-				while not torch.is_tensor(batch):
+				while not torch.is_tensor(batch) and not error:
 					try:
 						batch = self.from_frames(next(frame_generator))
-						yield batch
-					# Video is done (frame_generator_1 finished)
+					# Video is done (frame_generator finished)
 					except StopIteration:
 						del frame_generator
 						video_handle.release()
-						error = True
-						break
-					except IndexError as Error:
-						# Requested segment is invalid (goes out of bounds of video length)
 						error = True
 						break
 					except AttributeError as Error:
@@ -214,24 +213,21 @@ class BatchGenerator:
 					except ValueError as Error:
 						# Multiple faces error
 						print("DEBUG: {}".format(Error))
+						del frame_generator
+						video_handle.release()
 						# Move the file to a special folder for videos with multiple faces
 						misc.put_file_in_folder(file_path = video_path, folder = "multiple_faces")
 						error = True
 						break
-					except AssertionError as Error:
-						# Corrupt file error
-						print("DEBUG: {}".format(Error))
-						# Move the file to a special folder for corrupt videos
-						misc.put_file_in_folder(file_path = video_path, folder = "bad_samples")
-						error = True
-						break
+				if torch.is_tensor(batch):
+					yield batch
 		
-		except AssertionError:
+		except CorruptVideoError as Error:
+			# print(">> DEBUG: {}".format(Error))
 			# Release the video file
 			video_handle.release()
-			# Move the file to a special folder for short/corrupt videos
+			# Move the file to a folder for corrupt videos
 			misc.put_file_in_folder(file_path = video_path, folder = "bad_samples")
-			yield None
 
 
 	"""
@@ -244,12 +240,17 @@ class BatchGenerator:
 		# Open the two videos
 		video_handle_1 = cv2.VideoCapture(video_path_1)
 		video_handle_2 = cv2.VideoCapture(video_path_2)
-		# Try..Except to handle the video_handle failure case
+		v1_err, v2_err = False, False
 		try:
-			# Check that the videos were opened successfully 
-			assert video_handle_1.isOpened() == True, "VideoCapture() failed to open {}".format(video_path_1)
-			assert video_handle_2.isOpened() == True, "VideoCapture() failed to open {}".format(video_path_2)
-			# Get generators for sequences of frame from each video
+			# Check that the videos were opened successfully
+			if video_handle_1.isOpened() == False:
+				v1_err = True
+				raise CorruptVideoError("cv2.VideoCapture() failed to open {}".format(video_path_1))
+			if video_handle_2.isOpened() == False:
+				v2_err = True
+				raise CorruptVideoError("cv2.VideoCapture() failed to open {}".format(video_path_2))
+
+			# Get generators for consecutive sequences of frames from each video
 			frame_generator_1 = opencv_helpers.yield_video_frames(video_handle_1, int(self.batch_size/2))
 			frame_generator_2 = opencv_helpers.yield_video_frames(video_handle_2, int(self.batch_size/2))
 			# Iterate through the video yielding batches of <batch_size> frames
@@ -283,6 +284,9 @@ class BatchGenerator:
 							misc.put_file_in_folder(file_path = video_path_1, folder = "multiple_faces")
 							error = True
 							break
+						except CorruptVideoError as Error:
+							v1_err = True
+							raise
 					while not torch.is_tensor(batch2) and not error:
 						try:
 							batch2 = self.from_frames(next(frame_generator_2))
@@ -308,17 +312,20 @@ class BatchGenerator:
 							misc.put_file_in_folder(file_path = video_path_2, folder = "multiple_faces")
 							error = True
 							break
+						except CorruptVideoError as Error:
+							v2_err = True
+							raise
 					if torch.is_tensor(batch1) and torch.is_tensor(batch2):
 						batch = torch.cat((batch1, batch2), 0)
 						yield batch
 		
-		except AssertionError:
-			# Move the corrupt file to a special folder for short/corrupt videos
-			if video_handle_1.isOpened() == False:
-				video_handle_1.release()
+		except CorruptVideoError:
+			# print(">> DEBUG: {}".format(Error))
+			# Release video handles
+			video_handle_1.release()
+			video_handle_2.release()
+			# Move the file to a folder for corrupt videos
+			if v1_err:
 				misc.put_file_in_folder(file_path = video_path_1, folder = "bad_samples")
-			elif video_handle_2.isOpened() == False:
-				video_handle_1.release()
-				video_handle_2.release()
+			if v2_err:
 				misc.put_file_in_folder(file_path = video_path_2, folder = "bad_samples")
-			yield None

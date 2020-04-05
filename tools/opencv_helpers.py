@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 from random import randint
 
+from tools.custom_errors import CorruptVideoError
+
 frame_rate = 30
 segment_length = 1 * frame_rate		# Segment length is the number of seconds
 
@@ -45,11 +47,16 @@ def loadFrameSequence(video_handle, start_frame, sequence_length, is_color = Tru
 	video_handle.set(1, current_frame)	#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
 	frame_sequence = []
 	for _ in range(sequence_length):
-		frame = getFrame(video_handle)
+		try:
+			frame = getFrame(video_handle)
+		except Exception:
+			if video_handle.get(1) + 1 <= video_length:
+				raise CorruptVideoError("getFrame raised Exception() despite handled video having more frames")
+			else:
+				raise
+				
 		if not is_color:
 			frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-		# frame = np.expand_dims(frame, axis=0)
-		# frame_sequence = np.concatenate((frame_sequence, frame), axis=0)
 		frame_sequence.append(frame)
 	frame_sequence = np.array(frame_sequence)
 	
@@ -63,7 +70,14 @@ def yield_video_frames(video_handle, sequence_length, is_color = True):
 	while current_frame + sequence_length <= video_length:
 		frame_sequence = []
 		for _ in range(sequence_length):
-			frame = getFrame(video_handle)
+			try:
+				frame = getFrame(video_handle)
+			except Exception:
+				if video_handle.get(1) + 1 <= video_length:
+					raise CorruptVideoError("getFrame raised Exception() despite handled video having more frames")
+				else:
+					raise
+
 			if not is_color:
 				frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 			frame_sequence.append(frame)
@@ -99,5 +113,4 @@ def videoFromFrameSequence(filename, frame_sequence, fps, is_color):
 		video_writer.write(frame)
 	video_writer.release()
 	cv2.destroyAllWindows()
-
 
