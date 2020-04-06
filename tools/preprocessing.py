@@ -131,31 +131,10 @@ def get_faces(img, isPath = False):
 
 		# print("DEBUG: crop_height: {}, crop_width: {}, crop_diff: {}".format(crop_height, crop_width, crop_diff))
 		# print("DEBUG: top: {}, bottom: {}, left: {}, right: {}".format(top, bottom, left, right))
-
-		# # Handle cases where the new box will extend beyond image dimensions, requiring padding
-		# (crop_height, crop_width, _) = np.shape(cropped_img)
-		# if top < 0:
-		# 	padding = np.zeros((abs(top), crop_width, 3), dtype = "uint8")
-		# 	cropped_img = cv2.vconcat([padding, cropped_img])
-		# elif left < 0:
-		# 	padding = np.zeros((crop_height, abs(left), 3), dtype = "uint8")
-		# 	cropped_img = cv2.hconcat([padding, cropped_img])
-		# elif bottom > img_height-1:
-		# 	padding = np.zeros((bottom - (img_height-1), crop_width, 3), dtype = "uint8")
-		# 	cropped_img = cv2.vconcat([cropped_img, padding])
-		# elif right > img_width-1:
-		# 	padding = np.zeros((crop_height, right - (img_width-1), 3), dtype = "uint8")
-		# 	cropped_img = cv2.hconcat([padding, cropped_img])
-
-		if np.shape(cropped_img[0]) != np.shape(cropped_img[1]):
-			print("DEBUG: Cropped image is not a square! Shape: {}".format(np.shape(cropped_img)))
 		
 		# Append transformed face and its position in the image
 		faces.append(cropped_img)
 		face_positions.append((face_Y, face_X))
-
-	# Throw an AssertionError if <faces> is an empty list:
-	assert faces, "No faces detected."
 
 	return faces, face_positions
 

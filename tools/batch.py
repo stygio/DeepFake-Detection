@@ -19,8 +19,7 @@ class BatchGenerator:
 	def from_video_segment(self, video_path, start_frame = None):
 		video_handle = cv2.VideoCapture(video_path)
 		# Try..Except to handle the video_handle failure case
-		try:
-			assert video_handle.isOpened() == True, "VideoCapture() failed to open the video"
+		if video_handle.isOpened() == True:
 			video_length = video_handle.get(7)
 			# If start_frame is not given choose random start_frame in the range of the video length in frames
 			if start_frame == None:
@@ -31,32 +30,24 @@ class BatchGenerator:
 						start_frame + self.batch_size, video_length))
 
 			# Grab a frame sequence
-			start_time = time.time()
 			frames = opencv_helpers.loadFrameSequence(video_handle, start_frame, sequence_length = self.batch_size)
 			video_handle.release()
-			print('DEBUG: <loadFrameSequence> elapsed time: {:.2f}'.format(time.time() - start_time))
 			# Process the frames to retrieve only the faces, and construct the batch
 			batch = []
 			for frame in frames:
 				# Retrieve detected faces and their positions. Throw an <AssertionError> in case of no detected faces.
-				faces, face_positions = [], []
-				try:
-					# start_time = time.time()
-					faces, face_positions = preprocessing.get_faces(frame)
-					# print('DEBUG: <create_homogenous_batch> <preprocessing.get_faces> elapsed time: {:.2f}'.format(time.time() - start_time))
-				except AssertionError:
-					raise AttributeError("No faces detected in {}".format(video_path))
-				# Check whether 1 face was detected. If more - throw a ValueError
-				if len(face_positions) == 1:
+				faces, face_positions = preprocessing.get_faces(frame)
+				if len(face_positions) == 0:
+					raise NoFaceDetected("No faces detected in {}".format(video_path))
+				elif len(face_positions) == 1:
 					tensor_img = self.tensor_transform(Image.fromarray(faces[0]))
 					batch.append(tensor_img)
 				else:
-					# ToDo: Multiple faces, choose closest one
-					raise ValueError("Multiple faces detected in {}".format(video_path))
-		except:
-			# An error occured
+					raise MultipleFacesDetected("Multiple faces detected in {}".format(video_path))
+		else:
 			video_handle.release()
-			raise
+			# put_file_in_folder(file_path = video_path, folder = "bad_samples")
+			raise CorruptVideoError("VideoCapture() failed to open {}".format(video_path))
 
 		# Stack list of tensors into a single tensor on device
 		batch = torch.stack(batch).to(self.device)
@@ -68,18 +59,15 @@ class BatchGenerator:
 		# Process the frames to retrieve only the faces, and construct the batch
 		batch = []
 		for frame in video_frames:
-			# Retrieve detected faces and their positions. Throw an <AssertionError> in case of no detected faces.
-			faces, face_positions = [], []
-			try:
-				faces, face_positions = preprocessing.get_faces(frame)
-			except AssertionError as Error:
-				raise AttributeError("No faces detected.")
-			# Check whether 1 face was detected. If more - throw a ValueError
-			if len(face_positions) == 1:
+			# Retrieve detected faces and their positions.
+			faces, face_positions = preprocessing.get_faces(frame)
+			if len(face_positions) == 0:
+					raise NoFaceDetected("No faces detected.")
+			elif len(face_positions) == 1:
 				tensor_img = self.tensor_transform(Image.fromarray(faces[0]))
 				batch.append(tensor_img)
 			else:
-				raise ValueError("Multiple faces detected.")
+				raise MultipleFacesDetected("Multiple faces detected.")
 
 		# Stack list of tensors into a single tensor on device
 		batch = torch.stack(batch).to(self.device)
@@ -108,28 +96,21 @@ class BatchGenerator:
 				video_length = video_handle.get(7)
 				frame = opencv_helpers.getRandomFrame(video_handle)
 				video_handle.release()
-				cv2.destroyAllWindows()
 
-				# Retrieve detected faces and their positions. Throw an <AssertionError> in case of no detected faces.
-				faces, face_positions = [], []
-				try:
-					faces, face_positions = preprocessing.get_faces(frame)
-				except AssertionError:
-					print("No faces detected in {}".format(video_path))
-				# Check whether 1 face was detected. If more - throw a ValueError
-				if len(face_positions) == 1:
+				# Retrieve detected faces and their positions.
+				faces, face_positions = preprocessing.get_faces(frame)
+				if len(face_positions) == 0:
+					raise NoFaceDetected("No faces detected in {}".format(video_path))
+				elif len(face_positions) == 1:
 					tensor_img = self.tensor_transform(Image.fromarray(faces[0]))
 					batch.append(tensor_img)
 					labels.append(label)
-				elif len(face_positions) >= 2:
-					# ToDo: Multiple faces, choose closest one
+				else:
 					print("Multiple faces detected in {}".format(video_path))
 					put_file_in_folder(file_path = video_path, folder = "multiple_faces")
 			else:
-				# VideoCapture() failed to open the video
 				print("VideoCapture() failed to open {}".format(video_path))
 				video_handle.release()
-				cv2.destroyAllWindows()
 				put_file_in_folder(file_path = video_path, folder = "bad_samples")
 
 		# Stack list of tensors into a single tensor on device
@@ -207,13 +188,10 @@ class BatchGenerator:
 						video_handle.release()
 						error = True
 						break
-					except AttributeError as Error:
-						# No faces error
+					except NoFaceDetected as Error:
 						print("DEBUG: {}".format(Error))
-					except ValueError as Error:
-						# Multiple faces error
+					except MultipleFacesDetected as Error:
 						print("DEBUG: {}".format(Error))
-						del frame_generator
 						video_handle.release()
 						# Move the file to a special folder for videos with multiple faces
 						misc.put_file_in_folder(file_path = video_path, folder = "multiple_faces")
@@ -264,20 +242,14 @@ class BatchGenerator:
 							batch1 = self.from_frames(next(frame_generator_1))
 						# Video is done (frame_generator_1 finished)
 						except StopIteration:
-							del frame_generator_1
-							del frame_generator_2
 							video_handle_1.release()
 							video_handle_2.release()
 							error = True
 							break
-						# No faces error
-						except AttributeError as Error:
+						except NoFaceDetected as Error:
 							print(">> DEBUG: {}".format(Error))
-						# Multiple faces error
-						except ValueError as Error:
+						except MultipleFacesDetected as Error:
 							print(">> DEBUG: {}".format(Error))
-							del frame_generator_1
-							del frame_generator_2
 							video_handle_1.release()
 							video_handle_2.release()
 							# Move the file to a special folder for videos with multiple faces
@@ -292,20 +264,16 @@ class BatchGenerator:
 							batch2 = self.from_frames(next(frame_generator_2))
 						# Video is done (frame_generator_2 finished)
 						except StopIteration:
-							del frame_generator_1
-							del frame_generator_2
 							video_handle_1.release()
 							video_handle_2.release()
 							error = True
 							break
 						# No faces error
-						except AttributeError as Error:
+						except NoFaceDetected as Error:
 							print(">> DEBUG: {}".format(Error))
 						# Multiple faces error
-						except ValueError as Error:
+						except MultipleFacesDetected as Error:
 							print(">> DEBUG: {}".format(Error))
-							del frame_generator_1
-							del frame_generator_2
 							video_handle_1.release()
 							video_handle_2.release()
 							# Move the file to a special folder for videos with multiple faces
