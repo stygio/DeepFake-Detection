@@ -173,8 +173,6 @@ class Network:
 		
 		# Model name
 		self.model_name = model_name
-		# Initializing mobilenet for face recognition
-		preprocessing.initialize_mobilenet()
 		# Choose torch device
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# Setup chosen CNN model

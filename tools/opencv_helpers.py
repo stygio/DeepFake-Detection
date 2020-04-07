@@ -35,18 +35,17 @@ def saveFrameCollection(filename):
 	video_handle.release()
 
 
-def loadFrameSequence(video_handle, start_frame, sequence_length, is_color = True):
+def load_video_segment(video_handle, start_frame, segment_length, is_color = True):
 	video_length = video_handle.get(7)
 	try:
-		assert start_frame + sequence_length <= video_length, "Not enough frames after <start_frame> to return sequence of requested <sequence_length>."
+		assert start_frame + segment_length <= video_length, "Not enough frames after <start_frame> to return sequence of requested <segment_length>."
 	except AssertionError:
 		video_handle.release()
 		raise
 
-	current_frame = start_frame
-	video_handle.set(1, current_frame)	#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
+	video_handle.set(1, start_frame)	#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
 	frame_sequence = []
-	for _ in range(sequence_length):
+	for _ in range(int(segment_length)):
 		try:
 			frame = getFrame(video_handle)
 		except Exception:
@@ -63,13 +62,13 @@ def loadFrameSequence(video_handle, start_frame, sequence_length, is_color = Tru
 	return frame_sequence
 
 
-def yield_video_frames(video_handle, sequence_length, is_color = True):
+def yield_video_frames(video_handle, segment_length, is_color = True):
 	video_length = video_handle.get(7)
 	current_frame = 0
 
-	while current_frame + sequence_length <= video_length:
+	while current_frame + segment_length <= video_length:
 		frame_sequence = []
-		for _ in range(sequence_length):
+		for _ in range(int(segment_length)):
 			try:
 				frame = getFrame(video_handle)
 			except Exception:
@@ -82,7 +81,7 @@ def yield_video_frames(video_handle, sequence_length, is_color = True):
 				frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 			frame_sequence.append(frame)
 		frame_sequence = np.array(frame_sequence)
-		current_frame += sequence_length
+		current_frame += segment_length
 		
 		yield frame_sequence
 

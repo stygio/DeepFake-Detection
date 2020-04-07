@@ -6,3 +6,5 @@ testing_script.py
 *.pt
 outputs/logs/*.csv
 venv/
+test.py
+move_files_back.py

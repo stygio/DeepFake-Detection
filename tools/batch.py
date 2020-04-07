@@ -14,6 +14,8 @@ class BatchGenerator:
 		self.tensor_transform = transform.model_transforms[model_type]
 		self.device = device
 		self.batch_size = batch_size
+		# Initializing mobilenet for face recognition
+		preprocessing.initialize_mobilenet(0.4)
 
 	# Create a batch of face images from a point in the video
 	def from_video_segment(self, video_path, start_frame = None):
