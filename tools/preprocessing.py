@@ -52,34 +52,38 @@ def initialize_mobilenet(gpu_allocation = 0.4):
 		num_detections = detection_graph.get_tensor_by_name('num_detections:0')
 
 
-def get_mobilenet_faces(image):
+def get_mobilenet_faces(images):
 	# Minimum threshold to qualify a detected object as a face
 	mobilenet_score_threshold = 0.4
 
-	(im_height,im_width)=image.shape[:-1]
-	imgs=np.array([image])
+	if len(np.shape(images)) == 3:
+		images = [images]
+	(im_height,im_width)=images.shape[1:-1]
+	imgs=np.array(images)
 	(boxes, scores) = sess.run(
 		[boxes_tensor, scores_tensor],
 		feed_dict={image_tensor: imgs})
 
-	# Grab the box which the highest scoring face
-	max_ = np.where(scores == scores.max())[0][0]
-	box = boxes[0][max_]
-	ymin, xmin, ymax, xmax = box
-	(left, right, top, bottom) = (xmin * im_width, xmax * im_width, 
-								ymin * im_height, ymax * im_height)
-	face = (int(top), int(bottom), int(left), int(right))
-	faces = [face]
+	faces = []
+	for n in range(len(boxes)):
+		# Grab the box which the highest scoring face
+		max_ = np.where(scores == scores[n].max())[0][0]
+		box = boxes[n][max_]
+		ymin, xmin, ymax, xmax = box
+		(left, right, top, bottom) = (xmin * im_width, xmax * im_width, 
+									ymin * im_height, ymax * im_height)
+		face = (int(top), int(bottom), int(left), int(right))
+		faces.append([face])
 
-	# Append any other faces
-	for i, box in enumerate(boxes[0]):
-		# Check whether the box's score is above the threshold and isn't the max score (that one is already added)
-		if scores[0][i] > mobilenet_score_threshold and i != max_:
-			ymin, xmin, ymax, xmax = box
-			(left, right, top, bottom) = (xmin * im_width, xmax * im_width, 
-										ymin * im_height, ymax * im_height)
-			face = (int(top), int(bottom), int(left), int(right))
-			faces.append(face)
+		# Append any other faces
+		for i, box in enumerate(boxes[n]):
+			# Check whether the box's score is above the threshold and isn't the max score (that one is already added)
+			if scores[n][i] > mobilenet_score_threshold and i != max_:
+				ymin, xmin, ymax, xmax = box
+				(left, right, top, bottom) = (xmin * im_width, xmax * im_width, 
+											ymin * im_height, ymax * im_height)
+				face = (int(top), int(bottom), int(left), int(right))
+				faces[-1].append(face)
 
 	return faces
 
@@ -146,53 +150,48 @@ def get_faces(img):
 	return faces, face_positions
 
 
-def get_bounding_boxes(img):
-	# Load image and resize if it's too big (otherwise we run into an out-of-memory error with CUDA)
-	if type(img) is not np.ndarray:
-		if os.path.isfile(img):
-			img = cv2.imread(img)
-	# if np.shape(img)[0] > 720:
-	# 	scale_factor = 720/np.shape(img)[0] # percent of original size
-	# 	width = int(img.shape[1] * scale_factor)
-	# 	height = int(img.shape[0] * scale_factor)
-	# 	dim = (width, height)
-	# 	# resize image
-	# 	img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
-	rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-	# print("DEBUG: Retrieved image shape: {}".format(np.shape(rgb_img)))
+def get_bounding_boxes(imgs):
+	if len(np.shape(imgs)) == 3:
+		imgs = [imgs]
+	rgb_imgs = []
+	for img in imgs:
+		rgb_imgs.append(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+	rgb_imgs = np.array(rgb_imgs)
 	
-	# Acquire face_locations, which is a list of tuples with locations
-	# of bounding boxes specified as (top, bottom, left, right)
-	face_locations = get_mobilenet_faces(rgb_img)
+	# Acquire face_locations, which is a list of tuples
+	# with bounding boxes specified as (top, bottom, left, right)
+	face_locations = get_mobilenet_faces(rgb_imgs)
 
 	boxes = []
-	for face in face_locations:
-		# Retrieve original bounding box
-		(top, right, bottom, left) = face
-		crop_height = bottom - top
-		crop_width = right - left
-		# Get the face's position in the image
-		face_Y = top + (crop_height / 2)
-		face_X = left + (crop_width / 2)
-		# Modify bounds by crop_factor
-		top = top - int((crop_factor-1) * crop_height / 2)
-		bottom = bottom + int((crop_factor-1) * crop_height/ 2)
-		left = left - int((crop_factor-1) * crop_width / 2)
-		right = right + int((crop_factor-1) * crop_width / 2)
-		# Calculate square crop dimensions
-		crop_height = bottom - top
-		crop_width = right - left
-		crop_diff = abs(crop_height - crop_width)
-		# Height of bounding box is larger than its width, extend horizontally
-		if crop_height > crop_width:
-			left = left - int(crop_diff/2)
-			right = right + int((crop_diff+1)/2)		# Compensating for cases where cropp_diff is an odd number
-		# Width of bounding box is larger than its height, extend vertically
-		elif crop_width > crop_height:
-			top = top - int(crop_diff/2)
-			bottom = bottom + int((crop_diff+1)/2)	# Compensating for cases where cropp_diff is an odd number
+	for faces in face_locations:
+		boxes.append([])
+		for face in faces:
+			# Retrieve original bounding box
+			(top, right, bottom, left) = face
+			crop_height = bottom - top
+			crop_width = right - left
+			# Get the face's position in the image
+			face_Y = top + (crop_height / 2)
+			face_X = left + (crop_width / 2)
+			# Modify bounds by crop_factor
+			top = top - int((crop_factor-1) * crop_height / 2)
+			bottom = bottom + int((crop_factor-1) * crop_height/ 2)
+			left = left - int((crop_factor-1) * crop_width / 2)
+			right = right + int((crop_factor-1) * crop_width / 2)
+			# Calculate square crop dimensions
+			crop_height = bottom - top
+			crop_width = right - left
+			crop_diff = abs(crop_height - crop_width)
+			# Height of bounding box is larger than its width, extend horizontally
+			if crop_height > crop_width:
+				left = left - int(crop_diff/2)
+				right = right + int((crop_diff+1)/2)		# Compensating for cases where cropp_diff is an odd number
+			# Width of bounding box is larger than its height, extend vertically
+			elif crop_width > crop_height:
+				top = top - int(crop_diff/2)
+				bottom = bottom + int((crop_diff+1)/2)	# Compensating for cases where cropp_diff is an odd number
 
-		boxes.append((top, bottom, left, right))
+			boxes[-1].append((top, bottom, left, right))
 
 	return boxes
 
@@ -208,11 +207,7 @@ def face_location_metadata(video_path, batch_size):
 	video_handle = cv2.VideoCapture(video_path)
 	# Check that video was opened successfully
 	if video_handle.isOpened() == True:
-		# If we grab batch_size frames in segments the last part of the video 
-		# will have a segment with a number of frames <= batch_size
 		video_length = video_handle.get(7)
-		leftover_frames = video_length % batch_size
-		leftover_start = video_length - leftover_frames
 		current_frame = 0
 
 		# Handle batches of batch_size frames from generator object
@@ -220,8 +215,8 @@ def face_location_metadata(video_path, batch_size):
 		while True:
 			try:
 				images = next(frames)
-				for image in images:
-					boxes = get_bounding_boxes(image)
+				batch_of_boxes = get_bounding_boxes(images)
+				for boxes in batch_of_boxes:
 					metadata_dict[current_frame] = {}
 					for i, box in enumerate(boxes):
 						metadata_dict[current_frame][i] = {}
@@ -233,18 +228,23 @@ def face_location_metadata(video_path, batch_size):
 			except StopIteration:
 				break
 
+		# If we grab batch_size frames in segments the last part of the video 
+		# will have a segment with a number of frames <= batch_size
+		leftover_frames = video_length % batch_size
+		leftover_start = video_length - leftover_frames
 		# Handle leftover frames (not enough for a batch of batch_size frames)
-		frames = opencv_helpers.load_video_segment(video_handle, start_frame = leftover_start, segment_length = leftover_frames)
-		for image in frames:
-			boxes = get_bounding_boxes(image)
-			metadata_dict[current_frame] = {}
-			for i, box in enumerate(boxes):
-				metadata_dict[current_frame][i] = {}
-				metadata_dict[current_frame][i]['top'] = box[0]
-				metadata_dict[current_frame][i]['bottom'] = box[1]
-				metadata_dict[current_frame][i]['left'] = box[2]
-				metadata_dict[current_frame][i]['right'] = box[3]
-			current_frame += 1
+		if leftover_frames != 0:
+			frames = opencv_helpers.load_video_segment(video_handle, start_frame = leftover_start, segment_length = leftover_frames)
+			batch_of_boxes = get_bounding_boxes(frames)
+			for boxes in batch_of_boxes:
+				metadata_dict[current_frame] = {}
+				for i, box in enumerate(boxes):
+					metadata_dict[current_frame][i] = {}
+					metadata_dict[current_frame][i]['top'] = box[0]
+					metadata_dict[current_frame][i]['bottom'] = box[1]
+					metadata_dict[current_frame][i]['left'] = box[2]
+					metadata_dict[current_frame][i]['right'] = box[3]
+				current_frame += 1
 
 		# Release video and return collected metadata about face locations
 		video_handle.release()
@@ -258,7 +258,7 @@ def face_location_metadata(video_path, batch_size):
 		return None
 
 
-def generate_bb_metadata_files(dataset_path, mobilenet_gpu_allocation = 0.6, batch_size = 50):
+def generate_bb_metadata_files(dataset_path, mobilenet_gpu_allocation = 0.7, batch_size = 8):
 	# Initialize face detector
 	initialize_mobilenet(mobilenet_gpu_allocation)
 	# Main loop iterating through folders and their files
