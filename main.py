@@ -48,18 +48,14 @@ if __name__ == '__main__':
 			raise Exception("Invalid dataset path '{}'".format(dataset_path)) 
 
 		epochs 			= int(	input("Epochs: "))
-		iterations 		= int(	input("Iterations: "))
-		batch_size 		= int(	input("Batch size: "))
-		batch_type 		= str(	input("Batch type {single, dual}: "))
-		if batch_type not in ['single', 'dual']:
-			raise Exception("Invalid batch type '{}'".format(batch_type))
+		batch_size 		= int(	input("Batch size (even): "))
 		only_fc_layer	= str(	input("Only FC layer {True, False}: "))
 		if only_fc_layer not in ['True', 'False']:
 			raise Exception("Invalid choice for only_fc_layer '{}'".format(only_fc_layer))
 		only_fc_layer = True if only_fc_layer == 'True' else False
 
 		net = Network(model_name = model_name, model_weights_path = model_path)
-		net.train_kaggle(dataset_path, epochs, iterations, batch_size, batch_type, only_fc_layer = only_fc_layer)
+		net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer)
 	
 	elif mode == 'test':
 		net = Network(model_name = model_name, model_weights_path = model_path)

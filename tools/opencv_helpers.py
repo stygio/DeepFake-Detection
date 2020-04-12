@@ -35,31 +35,34 @@ def saveFrameCollection(filename):
 	video_handle.release()
 
 
-def load_video_segment(video_handle, start_frame, segment_length, is_color = True):
+def getRandomFrame(video_handle, is_color = True):
 	video_length = video_handle.get(7)
+	video_handle.set(1, start_frame)	#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
+	
 	try:
-		assert start_frame + segment_length <= video_length, "Not enough frames after <start_frame> to return sequence of requested <segment_length>."
+		assert video_handle.get(7) >= 1, "Video doesn't have a single frame."
 	except AssertionError:
 		video_handle.release()
+		cv2.destroyAllWindows()
 		raise
 
-	video_handle.set(1, start_frame)	#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
-	frame_sequence = []
-	for _ in range(int(segment_length)):
-		try:
-			frame = getFrame(video_handle)
-		except Exception:
-			if video_handle.get(1) + 1 <= video_length:
-				raise CorruptVideoError("getFrame raised Exception() despite handled video having more frames")
-			else:
-				raise
-				
-		if not is_color:
-			frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-		frame_sequence.append(frame)
-	frame_sequence = np.array(frame_sequence)
+	random_frame = randint(0, video_length - 1)
+	video_handle.set(1, random_frame)	#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
+	frame = getFrame(video_handle)
+	if not is_color:
+		frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 	
-	return frame_sequence
+	return frame
+
+
+def videoFromFrameSequence(filename, frame_sequence, fps, is_color):
+	FourCC = cv2.VideoWriter_fourcc(*'XVID')
+	frame_size = (np.shape(frame_sequence)[2], np.shape(frame_sequence)[1])
+	video_writer = cv2.VideoWriter(filename, FourCC, float(fps), frame_size, is_color)
+	for frame in frame_sequence:
+		video_writer.write(frame)
+	video_writer.release()
+	cv2.destroyAllWindows()
 
 
 def yield_video_frames(video_handle, segment_length, is_color = True):
@@ -86,30 +89,46 @@ def yield_video_frames(video_handle, segment_length, is_color = True):
 		yield frame_sequence
 
 
-def getRandomFrame(video_handle, is_color = True):
+def load_video_segment(video_handle, start_frame, segment_length, is_color = True):
 	video_length = video_handle.get(7)
 	try:
-		assert video_handle.get(7) >= 1, "Video doesn't have a single frame."
+		assert start_frame + segment_length <= video_length, "Not enough frames after <start_frame> to return sequence of requested <segment_length>."
 	except AssertionError:
 		video_handle.release()
-		cv2.destroyAllWindows()
 		raise
 
-	random_frame = randint(0, video_length - 1)
-	video_handle.set(1, random_frame)	#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
-	frame = getFrame(video_handle)
-	if not is_color:
-		frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+	video_handle.set(1, start_frame)	#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
+	frame_sequence = []
+	for _ in range(int(segment_length)):
+		try:
+			frame = getFrame(video_handle)
+		except Exception:
+			if video_handle.get(1) + 1 <= video_length:
+				raise CorruptVideoError("getFrame raised Exception() despite handled video having more frames")
+			else:
+				raise
+				
+		if not is_color:
+			frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+		frame_sequence.append(frame)
 	
-	return frame
+	return np.array(frame_sequence)
 
 
-def videoFromFrameSequence(filename, frame_sequence, fps, is_color):
-	FourCC = cv2.VideoWriter_fourcc(*'XVID')
-	frame_size = (np.shape(frame_sequence)[2], np.shape(frame_sequence)[1])
-	video_writer = cv2.VideoWriter(filename, FourCC, float(fps), frame_size, is_color)
-	for frame in frame_sequence:
-		video_writer.write(frame)
-	video_writer.release()
-	cv2.destroyAllWindows()
+def specific_frames(video_handle, frame_numbers, is_color = True):
+	frames = []
+	for frame_number in frame_numbers:
+		video_handle.set(1, frame_number)		#Set "CV_CAP_PROP_POS_FRAMES" to requested frame
+		try:
+			frame = getFrame(video_handle)
+		except Exception:
+			if video_handle.get(1) + 1 <= video_length:
+				raise CorruptVideoError("getFrame raised Exception() despite handled video having more frames")
+			else:
+				raise
+		if not is_color:
+			frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+		frames.append(frame)
+		
+	return np.array(frames)
 

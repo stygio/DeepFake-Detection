@@ -52,9 +52,17 @@ def initialize_mobilenet(gpu_allocation = 0.4):
 		num_detections = detection_graph.get_tensor_by_name('num_detections:0')
 
 
+def crop_image(img, box):
+	top, bottom, left, right = box
+	(img_height, img_width, _) = np.shape(img)
+	cropped_img = img[max(top, 0):min(bottom, img_height-1), max(left, 0):min(right, img_width-1)]
+
+	return cropped_img
+
+
 def get_mobilenet_faces(images):
 	# Minimum threshold to qualify a detected object as a face
-	mobilenet_score_threshold = 0.4
+	mobilenet_score_threshold = 0.65
 
 	if len(np.shape(images)) == 3:
 		images = [images]
@@ -264,12 +272,12 @@ def generate_bb_metadata_files(dataset_path, mobilenet_gpu_allocation = 0.7, bat
 	# Main loop iterating through folders and their files
 	for folder in os.listdir(dataset_path):
 		folder_path = os.path.join(dataset_path, folder)
-		metadata_path = os.path.join(folder_path, "boundingbox_metadata")
+		metadata_path = os.path.join(folder_path, "bounding_boxes")
 		os.makedirs(metadata_path, exist_ok=True)
 		label_metadata = os.path.join(folder_path, "metadata.json")
 		label_metadata = json.load(open(label_metadata))
 		videos = [x for x in os.listdir(folder_path) if x not in 
-			["metadata.json", "multiple_faces", "bad_samples", "boundingbox_metadata"]]
+			["metadata.json", "multiple_faces", "bad_samples", "boundingbox_metadata", "bounding_boxes"]]
 		
 		# First run through the folder - extract face bounding boxes for original videos
 		for video in tqdm(videos, desc = folder + " originals"):
