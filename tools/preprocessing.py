@@ -60,23 +60,23 @@ def crop_image(img, box):
 	return cropped_img
 
 
-def get_mobilenet_faces(images):
-	# Minimum threshold to qualify a detected object as a face
-	mobilenet_score_threshold = 0.65
-
+def get_mobilenet_faces(images, mobilenet_score_threshold = 0.35):
 	if len(np.shape(images)) == 3:
 		images = [images]
 	(im_height,im_width)=images.shape[1:-1]
 	imgs=np.array(images)
+	
+	# Run detection
 	(boxes, scores) = sess.run(
 		[boxes_tensor, scores_tensor],
 		feed_dict={image_tensor: imgs})
 
+	# Retrieve valid faces
 	faces = []
 	for n in range(len(boxes)):
-		# Grab the box which the highest scoring face
-		max_ = np.where(scores == scores[n].max())[0][0]
-		box = boxes[n][max_]
+		# Grab the box which the highest scoring face (indexed 0, since scores are sorted)
+		# max_ = np.where(scores == scores[n].max())[0][0]
+		box = boxes[n][0]
 		ymin, xmin, ymax, xmax = box
 		(left, right, top, bottom) = (xmin * im_width, xmax * im_width, 
 									ymin * im_height, ymax * im_height)
@@ -86,11 +86,13 @@ def get_mobilenet_faces(images):
 		# Append any other faces
 		for i, box in enumerate(boxes[n]):
 			# Check whether the box's score is above the threshold and isn't the max score (that one is already added)
-			if scores[n][i] > mobilenet_score_threshold and i != max_:
+			# if scores[n][i] > mobilenet_score_threshold and i != max_:
+			if i != 0 and scores[n][i] > mobilenet_score_threshold:
 				ymin, xmin, ymax, xmax = box
 				(left, right, top, bottom) = (xmin * im_width, xmax * im_width, 
 											ymin * im_height, ymax * im_height)
 				face = (int(top), int(bottom), int(left), int(right))
+				# show_test_img(crop_image(imgs[n], face))
 				faces[-1].append(face)
 
 	return faces
@@ -171,16 +173,13 @@ def get_bounding_boxes(imgs):
 	face_locations = get_mobilenet_faces(rgb_imgs)
 
 	boxes = []
-	for faces in face_locations:
+	for i, faces in enumerate(face_locations):
 		boxes.append([])
 		for face in faces:
 			# Retrieve original bounding box
-			(top, right, bottom, left) = face
+			(top, bottom, left, right) = face
 			crop_height = bottom - top
 			crop_width = right - left
-			# Get the face's position in the image
-			face_Y = top + (crop_height / 2)
-			face_X = left + (crop_width / 2)
 			# Modify bounds by crop_factor
 			top = top - int((crop_factor-1) * crop_height / 2)
 			bottom = bottom + int((crop_factor-1) * crop_height/ 2)
@@ -199,6 +198,7 @@ def get_bounding_boxes(imgs):
 				top = top - int(crop_diff/2)
 				bottom = bottom + int((crop_diff+1)/2)	# Compensating for cases where cropp_diff is an odd number
 
+			# show_test_img(crop_image(rgb_imgs[i], (top, bottom, left, right)))
 			boxes[-1].append((top, bottom, left, right))
 
 	return boxes
@@ -209,7 +209,7 @@ Compile metadata about face locations at each frame of the video
 	video_path - video to be processed
 	batch_size - batch size to process videos in
 """
-def face_location_metadata(video_path, batch_size):
+def face_location_metadata(video_path, batch_size, multiple_face_threshold = 0.1):
 	metadata_dict = {}
 	# Open video
 	video_handle = cv2.VideoCapture(video_path)
@@ -254,6 +254,11 @@ def face_location_metadata(video_path, batch_size):
 					metadata_dict[current_frame][i]['right'] = box[3]
 				current_frame += 1
 
+		# Checking whether there are frames in the video with multiple faces detected
+		# Detected faces are saved as keys starting from '0', so '1' means there is another
+		multiple_faces = [1 in bb.keys() for bb in metadata_dict.values()].count(True)
+		multiple_faces = True if multiple_faces/video_length > multiple_face_threshold else False
+		metadata_dict['multiple_faces'] = multiple_faces
 		# Release video and return collected metadata about face locations
 		video_handle.release()
 		return metadata_dict
@@ -266,7 +271,7 @@ def face_location_metadata(video_path, batch_size):
 		return None
 
 
-def generate_bb_metadata_files(dataset_path, mobilenet_gpu_allocation = 0.7, batch_size = 8):
+def generate_bb_metadata_files(dataset_path, mobilenet_gpu_allocation = 0.75, batch_size = 8):
 	# Initialize face detector
 	initialize_mobilenet(mobilenet_gpu_allocation)
 	# Main loop iterating through folders and their files
@@ -277,31 +282,37 @@ def generate_bb_metadata_files(dataset_path, mobilenet_gpu_allocation = 0.7, bat
 		label_metadata = os.path.join(folder_path, "metadata.json")
 		label_metadata = json.load(open(label_metadata))
 		videos = [x for x in os.listdir(folder_path) if x not in 
-			["metadata.json", "multiple_faces", "bad_samples", "boundingbox_metadata", "bounding_boxes"]]
+			["metadata.json", "multiple_faces", "bad_samples", "bounding_boxes"]]
 		
+		# Sort into originals and fakes
+		original_videos = []
+		fake_videos = []
+		for video in videos:
+			if label_metadata[video]['label'] == 'REAL':
+				original_videos.append(video)
+			else:
+				fake_videos.append(video)
+
 		# First run through the folder - extract face bounding boxes for original videos
-		for video in tqdm(videos, desc = folder + " originals"):
-			label = label_metadata[video]['label']
-			if label == 'REAL':
-				video_path = os.path.join(folder_path, video)
-				video_filename, _ = os.path.splitext(video)
-				metadata_filename = os.path.join(metadata_path, video_filename) + ".json"
-				# Only create the json if it hasn't been done yet
-				if not os.path.isfile(metadata_filename):
-					metadata = json.JSONEncoder().encode(face_location_metadata(video_path, batch_size))
-					metadata_file = open(metadata_filename, "w+")
-					json.dump(metadata, metadata_file)
-					metadata_file.close()
+		for video in tqdm(original_videos, desc = folder + " originals"):
+			video_path = os.path.join(folder_path, video)
+			video_filename, _ = os.path.splitext(video)
+			metadata_filename = os.path.join(metadata_path, video_filename) + ".json"
+			# Only create the json if it hasn't been done yet
+			if not os.path.isfile(metadata_filename):
+				# metadata = json.JSONEncoder().encode(face_location_metadata(video_path, batch_size))
+				metadata = face_location_metadata(video_path, batch_size)
+				metadata_file = open(metadata_filename, "w+")
+				json.dump(metadata, metadata_file)
+				metadata_file.close()
 
 		# Second run through the folder - copy bounding boxes for original videos to those of fakes
-		for video in videos:
-			label = label_metadata[video]['label']
-			if label == 'FAKE':
-				fake_filename, _ = os.path.splitext(video)
-				fake_json = os.path.join(metadata_path, fake_filename) + ".json"
-				# Only create the json if it hasn't been done yet
-				if not os.path.isfile(fake_json):
-					original_video = label_metadata[video]['original']
-					original_filename, _ = os.path.splitext(original_video)
-					original_json = os.path.join(metadata_path, original_filename) + ".json"
-					copyfile(original_json, fake_json)
+		for video in fake_videos:
+			fake_filename, _ = os.path.splitext(video)
+			fake_json = os.path.join(metadata_path, fake_filename) + ".json"
+			# Only create the json if it hasn't been done yet
+			if not os.path.isfile(fake_json):
+				original_video = label_metadata[video]['original']
+				original_filename, _ = os.path.splitext(original_video)
+				original_json = os.path.join(metadata_path, original_filename) + ".json"
+				copyfile(original_json, fake_json)

@@ -47,6 +47,7 @@ if __name__ == '__main__':
 		if not isdir(dataset_path):
 			raise Exception("Invalid dataset path '{}'".format(dataset_path)) 
 
+		start_folder 	= int(	input("Start from folder: ")) if model_path else None
 		epochs 			= int(	input("Epochs: "))
 		batch_size 		= int(	input("Batch size (even): "))
 		only_fc_layer	= str(	input("Only FC layer {True, False}: "))
@@ -55,7 +56,7 @@ if __name__ == '__main__':
 		only_fc_layer = True if only_fc_layer == 'True' else False
 
 		net = Network(model_name = model_name, model_weights_path = model_path)
-		net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer)
+		net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
 	
 	elif mode == 'test':
 		net = Network(model_name = model_name, model_weights_path = model_path)

@@ -368,7 +368,7 @@ class Network:
 		kaggle_dataset_path	- path to Kaggle DFDC dataset on local machine
 	"""
 	def train_kaggle(self, kaggle_dataset_path, epochs = 5, batch_size = 10, 
-			lr = 0.001, momentum = 0.9, only_fc_layer = False):
+			lr = 0.001, momentum = 0.9, only_fc_layer = False, start_folder = None):
 		
 		# Assert the batch_size is even
 		assert batch_size % 2 == 0, "Uneven batch_size equal to {}".format(batch_size)
@@ -392,9 +392,10 @@ class Network:
 		labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = self.device, requires_grad = False, dtype = torch.float)
 		labels = labels.view(-1,1)
 		
-		# Generator for random folder paths in real/fake video directories
+		# List of sorted folders in the kaggle directory
 		kaggle_folders = [os.path.join(kaggle_dataset_path, x) for x in os.listdir(kaggle_dataset_path) if x not in kaggle_test_folders]
-		
+		kaggle_folders = sorted(kaggle_folders, key = lambda d: int(d.split('_')[-1]))
+
 		# Create log file
 		filename = self.model_name + "_kaggle"
 		filename += "_fc" if only_fc_layer else "_full"
@@ -404,38 +405,48 @@ class Network:
 		# Run training loop, a folder of videos is an epoch
 		for epoch in range(1, epochs+1):
 
+			# Start training from requested folder
+			# Useful in case of training being interrupted previously before completing an epoch
+			if epoch == 1 and start_folder != None:
+				folder_paths = kaggle_folders[start_folder:]
+			else:
+				folder_paths = kaggle_folders
+
 			# Get the next folder of videos
-			for folder_path in kaggle_folders:
+			for folder_path in folder_paths:
 				videos = os.listdir(folder_path)
 				random.shuffle(videos)
-				videos = [x for x in videos if x not in ["metadata.json", "multiple_faces", "bad_samples", "boundingbox_metadata"]]
+				videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples"]]
 				metadata = os.path.join(folder_path, "metadata.json")
 				metadata = json.load(open(metadata))
-				bb_path = os.path.join(folder_path, "boundingbox_metadata")
+				bb_path = os.path.join(folder_path, "bounding_boxes")
+				
+				# Grab list of fake videos in the folder
+				fake_videos = []
+				for video in videos:
+					# Check if video is labeled as fake
+					if metadata[video]['label'] == 'FAKE':
+						fake_videos.append(video)
 				
 				# Iterations in this folder
 				accuracies = []
 				errors = []
-				progress_bar = tqdm(videos, desc = os.path.split(folder_path)[1])
+				progress_bar = tqdm(fake_videos, desc = os.path.split(folder_path)[1])
 				for video in progress_bar:
-					# Get label from metadata.json
-					label = metadata[video]['label']
-
-					if label == "FAKE":
-						# Absolute paths to videos
-						fake_video_path = os.path.join(folder_path, video)
-						real_video_path = os.path.join(folder_path, metadata[video]['original'])
-						# Retrieving dict of bounding boxes for faces
-						bounding_boxes  = os.path.join(bb_path, os.path.splitext(os.path.basename(real_video_path))[0]) + ".json"
-						bounding_boxes = json.JSONDecoder().decode(json.load(open(bounding_boxes)))
-						# Checking whether there are frames in the video with multiple faces detected
-						# Detected faces are saved as keys starting from '0', so '1' means there is another
-						multiple_faces = True in ['1' in bb.keys() for bb in bounding_boxes.values()]
+					# Absolute paths to videos
+					fake_video_path = os.path.join(folder_path, video)
+					real_video_path = os.path.join(folder_path, metadata[video]['original'])
+					# Retrieving dict of bounding boxes for faces
+					bounding_boxes  = os.path.join(bb_path, os.path.splitext(os.path.basename(real_video_path))[0]) + ".json"
+					bounding_boxes = json.load(open(bounding_boxes))
+					# Check if the video contains frames with multiple faces
+					multiple_faces = bounding_boxes['multiple_faces']
 
 					# Only run training for fake videos, with an existing original and a single face
-					if label == "FAKE" and os.path.exists(real_video_path) and not multiple_faces:
-						torch.cuda.empty_cache()
+					if os.path.exists(real_video_path) and not multiple_faces:
+						# Get batch
 						batch = BG.training_batch(fake_video_path, real_video_path, boxes = bounding_boxes, epoch = epoch)
+						# print(batch.cpu().detach().numpy())
 						# print(">> Epoch [{}/{}] Processing: {} and {}".format(
 						# 			epoch, epochs, fake_video_path, real_video_path))
 
@@ -443,9 +454,6 @@ class Network:
 						output = self.network(batch.detach())
 						if self.model_name == 'inception_v3':
 							output = output[0]
-						# Delete the batch to conserve memory
-						del batch
-						torch.cuda.empty_cache()
 						# Compute loss and do backpropagation
 						err = self.criterion(output, labels)
 						err.backward()
@@ -466,13 +474,15 @@ class Network:
 						postfix_dict = {'loss': round(np.mean(errors), 2), 'acc': round(np.mean(accuracies), 2)}
 						progress_bar.set_postfix(postfix_dict, refresh = False)
 
+						# Log results
 						log_string = "{},{},{},{},{:.2f},{:.2f},\n".format(
 									epoch, os.path.split(folder_path)[1], 
 									os.path.basename(fake_video_path), os.path.basename(real_video_path), 
 									err, acc)
 						misc.add_to_log(log_file = log_file, log_string = log_string)
 
-			self.save_model("kaggle", only_fc_layer)
+				# Save the model weights after each folder
+				self.save_model("kaggle_" + folder_path.split('_')[-1], only_fc_layer)
 
 
 	def evaluate_kaggle(self, kaggle_dataset_path, batch_size, iterations = 20):

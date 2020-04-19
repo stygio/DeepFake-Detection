@@ -14,11 +14,7 @@ Repository for work on my Master's Thesis project. The goal is to examine state-
 
 # ToDo:
 
-* Validation run
-
-* Training entire network, not just FC layer
-
-* Handling frames without detected faces more intelligently?
+* Normalize inputs, learning rate?
 
 # Dependcies:
 
