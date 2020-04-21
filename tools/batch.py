@@ -11,6 +11,7 @@ import tools.miscellaneous as misc
 class BatchGenerator:
 	
 	def __init__(self, model_type, device, batch_size):
+		self.training_transform = transform.data_augmentation
 		self.tensor_transform = transform.model_transforms[model_type]
 		self.device = device
 		self.batch_size = batch_size
@@ -343,8 +344,8 @@ class BatchGenerator:
 				right 	= boxes[str(frame_numbers[i])]['0']['right']
 				fake_face = preprocessing.crop_image(fake_frames[i], (top, bottom, left, right))
 				real_face = preprocessing.crop_image(real_frames[i], (top, bottom, left, right))
-				fake_faces.append(self.tensor_transform(Image.fromarray(fake_face)))
-				real_faces.append(self.tensor_transform(Image.fromarray(real_face)))
+				fake_faces.append(self.tensor_transform(self.training_transform(Image.fromarray(fake_face))))
+				real_faces.append(self.tensor_transform(self.training_transform(Image.fromarray(real_face))))
 
 			batch = fake_faces + real_faces
 			batch = torch.stack(batch).to(self.device)

@@ -1,5 +1,11 @@
 from torchvision import transforms
 
+data_augmentation = transforms.RandomOrder([
+        transforms.RandomHorizontalFlip(0.5),
+        transforms.ColorJitter(brightness = 0.3, contrast = 0.3, saturation = 0.3, hue = 0.3),
+        transforms.RandomRotation(30)
+        ])
+
 model_transforms = {
     'xception': transforms.Compose([
         transforms.Resize((299, 299)),
