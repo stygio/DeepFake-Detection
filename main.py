@@ -25,7 +25,7 @@ if __name__ == '__main__':
 		formatter_class = argparse.ArgumentDefaultsHelpFormatter)
 
 	p.add_argument('--mode', 		'-m', 	type = str, 
-		choices = ['train', 'test', 'detect'], required = True)
+		choices = ['train', 'val', 'test', 'detect'], required = True)
 	p.add_argument('--model_name', 	'-mn', 	type = str,	
 		choices = ['xception', 'inception_v3', 'resnet152', 'resnext101'])
 	p.add_argument('--model_path', 	'-mp', 	type = str, 
@@ -37,7 +37,8 @@ if __name__ == '__main__':
 	model_name = args.model_name
 	model_path = args.model_path
 	if not (model_path == None or isfile(model_path)):
-			raise Exception("Invalid model path '{}'".format(model_path)) 
+			raise Exception("Invalid model path '{}'".format(model_path))
+
 
 	if mode == 'train':
 		dataset_name 	= str(	input("Dataset name {kaggle, face_forensics}: "))
@@ -58,10 +59,17 @@ if __name__ == '__main__':
 		net = Network(model_name = model_name, model_weights_path = model_path)
 		net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
 	
+
+	elif mode == 'val':
+		net = Network(model_name = model_name, model_weights_path = model_path)
+		net.validate_kaggle("D:/Kaggle_Dataset", batch_size = 10)
+
+
 	elif mode == 'test':
 		net = Network(model_name = model_name, model_weights_path = model_path)
-		net.evaluate_kaggle("D:/Kaggle_Dataset", batch_size = 10)
+		net.test_kaggle("D:/Kaggle_Dataset", batch_size = 10)
 	
+
 	elif mode == 'detect':
 		print("To be implemeneted in a future release.")
 
