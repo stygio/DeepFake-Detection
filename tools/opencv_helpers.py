@@ -1,11 +1,11 @@
 import cv2
 import numpy as np
 from random import randint
+import os
+import json
 
 from tools.custom_errors import CorruptVideoError
-
-frame_rate = 30
-segment_length = 1 * frame_rate		# Segment length is the number of seconds
+from tools import preprocessing
 
 
 def getFrame(video_handle):
@@ -15,24 +15,36 @@ def getFrame(video_handle):
 	return frame
 
 
-def saveFrameCollection(filename):
+def save_frames_from_video(filename):
 	video_handle = cv2.VideoCapture(filename)
-	frame_nr = 0
-	success_flag, image = video_handle.read()
+	assert video_handle.isOpened(), "Unable to open " + filename
+	video_length = video_handle.get(7)
 	image_path = filename.partition(".")[0] + "/"
-	frame_collection = np.asarray(image)
-	while (frame_nr < 60*frame_rate) and success_flag:
-		frame_nr += 1
-		success_flag, image = video_handle.read()
-		if frame_nr % segment_length == 0:
-			image_name = image_path + "segment{0}.png".format(int((frame_nr + 0)/segment_length))
-			print(image_name)
-			print(np.shape(frame_collection))
-			cv2.imwrite(image_name, frame_collection)
-			frame_collection = np.asarray(image)
-		else:
-			frame_collection = np.concatenate((frame_collection, image), axis=0)
-	video_handle.release()
+	os.makedirs(image_path, exist_ok = True)
+
+	for frame_nr in range(int(video_length)):
+		frame = getFrame(video_handle)
+		image_name = image_path + "frame_{0}.png".format(frame_nr)
+		cv2.imwrite(image_name, frame)
+
+
+def save_faces_from_video(filename, boxes):
+	video_handle = cv2.VideoCapture(filename)
+	assert video_handle.isOpened(), "Unable to open " + filename
+	video_length = video_handle.get(7)
+	image_path = filename.partition(".")[0] + "/"
+	os.makedirs(image_path, exist_ok = True)
+	boxes = json.load(open(boxes))
+
+	for frame_nr in range(int(video_length)):
+		top 	= boxes[str(frame_nr)]['0']['top']
+		bottom 	= boxes[str(frame_nr)]['0']['bottom']
+		left 	= boxes[str(frame_nr)]['0']['left']
+		right 	= boxes[str(frame_nr)]['0']['right']
+		frame = getFrame(video_handle)
+		face = preprocessing.crop_image(frame, (top, bottom, left, right))
+		image_name = image_path + "frame_{0}.png".format(frame_nr)
+		cv2.imwrite(image_name, face)
 
 
 def getRandomFrame(video_handle, is_color = True):
@@ -43,7 +55,6 @@ def getRandomFrame(video_handle, is_color = True):
 		assert video_handle.get(7) >= 1, "Video doesn't have a single frame."
 	except AssertionError:
 		video_handle.release()
-		cv2.destroyAllWindows()
 		raise
 
 	random_frame = randint(0, video_length - 1)
