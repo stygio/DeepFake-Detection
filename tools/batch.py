@@ -303,7 +303,7 @@ class BatchGenerator:
 
 
 	"""
-	Function to retrieve a generator of batches in tensor form (Kaggle dataset)
+	Function to retrieve a generator of training batches in tensor form (Kaggle dataset)
 	The batches contain sequences of consecutive frames from a two videos (half of the batch from each one)
 		fake_video_path	- path to the altered video
 		real_video_path	- path to the original video the fake is based on
@@ -361,3 +361,53 @@ class BatchGenerator:
 				misc.put_file_in_folder(file_path = fake_video_path, folder = "bad_samples")
 			if real_err:
 				misc.put_file_in_folder(file_path = real_video_path, folder = "bad_samples")
+
+
+	"""
+	Function to retrieve a generator of batches in tensor form (Kaggle dataset)
+	The batches contain sequences of consecutive frames from a two videos (half of the batch from each one)
+		video_path - path to the video
+		boxes	   - dictionary of bounding boxes in the video	
+	"""
+	def evaluation_batch(self, video_path, boxes):
+		# Open the video
+		video_handle = cv2.VideoCapture(video_path)
+		try:
+			# Check that video was opened correctly
+			if video_handle.isOpened() == False:
+				raise CorruptVideoError("cv2.VideoCapture() failed to open {}".format(video_path))
+
+			# Generator for consecutive sequences of <batch_size> frames
+			frame_generator = opencv_helpers.yield_video_frames(video_handle, int(self.batch_size))
+			# Iterate through the video yielding batches of <batch_size> frames
+			error = False
+			start_frame = 0
+			while not error:
+				try:
+					batch = next(frame_generator)
+					start_frame += int(self.batch_size)
+
+					faces = []
+					for i in range(int(self.batch_size)):
+						top 	= boxes[str(start_frame + i)]['0']['top']
+						bottom 	= boxes[str(start_frame + i)]['0']['bottom']
+						left 	= boxes[str(start_frame + i)]['0']['left']
+						right 	= boxes[str(start_frame + i)]['0']['right']
+						face = preprocessing.crop_image(batch[i], (top, bottom, left, right))
+						faces.append(self.tensor_transform(Image.fromarray(face)))
+
+					batch = torch.stack(faces).to(self.device)
+					yield batch
+
+				# Video is done (frame_generator finished)
+				except StopIteration:
+					del frame_generator
+					video_handle.release()
+					error = True
+					break
+		
+		except CorruptVideoError as Error:
+			# Release the video file
+			video_handle.release()
+			# Move the file to a folder for corrupt videos
+			misc.put_file_in_folder(file_path = video_path, folder = "bad_samples")

@@ -60,15 +60,9 @@ if __name__ == '__main__':
 		net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
 	
 
-	elif mode == 'val':
+	elif mode == 'val' or mode == 'test':
 		net = Network(model_name = model_name, model_weights_path = model_path)
-		net.validate_kaggle("D:/Kaggle_Dataset", batch_size = 10)
-
-
-	elif mode == 'test':
-		net = Network(model_name = model_name, model_weights_path = model_path)
-		net.test_kaggle("D:/Kaggle_Dataset", batch_size = 10)
-	
+		net.evaluate_kaggle("D:/Kaggle_Dataset", mode = mode, batch_size = 50)	
 
 	elif mode == 'detect':
 		print("To be implemeneted in a future release.")

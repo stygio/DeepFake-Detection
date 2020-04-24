@@ -486,157 +486,83 @@ class Network:
 				self.save_model("kaggle_" + folder_path.split('_')[-1], only_fc_layer)
 
 
-	def validate_kaggle(self, kaggle_dataset_path, batch_size):
+	def evaluate_kaggle(self, kaggle_dataset_path, mode, batch_size):
 		
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
-
-		# Get label tensor
-		labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = self.device, requires_grad = False, dtype = torch.float)
-		labels = labels.view(-1,1)
 		
-		# List of absolute paths to validation folders
-		validation_folders = [os.path.join(kaggle_dataset_path, x) for x in kaggle_validation_folders]
+		# List of absolute paths to evaluation folders
+		if mode == 'val':
+			folders = kaggle_validation_folders
+		elif mode == 'test':
+			folders = kaggle_test_folders
+		else:
+			raise Exception("Invalid mode for <evaluate_kaggle>.")
+		folder_paths = [os.path.join(kaggle_dataset_path, x) for x in folders]
 
 		# Get the next folder of videos
-		for folder_path in validation_folders:
+		for folder_path in folder_paths:
 			videos = os.listdir(folder_path)
-			random.shuffle(videos)
 			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples"]]
 			metadata = os.path.join(folder_path, "metadata.json")
 			metadata = json.load(open(metadata))
 			bb_path = os.path.join(folder_path, "bounding_boxes")
 			
-			# Grab list of fake videos in the folder
-			fake_videos = []
-			for video in videos:
-				# Check if video is labeled as fake
-				if metadata[video]['label'] == 'FAKE':
-					fake_videos.append(video)
-			
 			# Iterations in this folder
-			accuracies = []
-			errors = []
-			progress_bar = tqdm(fake_videos, desc = os.path.split(folder_path)[1])
+			overall_err = []
+			overall_acc = []
+			progress_bar = tqdm(videos, desc = os.path.split(folder_path)[1])
 			for video in progress_bar:
-				# Absolute paths to videos
-				fake_video_path = os.path.join(folder_path, video)
-				real_video_path = os.path.join(folder_path, metadata[video]['original'])
+				# Absolute path to video
+				video_path = os.path.join(folder_path, video)
 				# Retrieving dict of bounding boxes for faces
-				bounding_boxes  = os.path.join(bb_path, os.path.splitext(os.path.basename(real_video_path))[0]) + ".json"
+				bounding_boxes  = os.path.join(bb_path, os.path.splitext(os.path.basename(video_path))[0]) + ".json"
 				bounding_boxes = json.load(open(bounding_boxes))
+				# Retrieve the video's label
+				label = metadata[video]['label']
 				# Check if the video contains frames with multiple faces
 				multiple_faces = bounding_boxes['multiple_faces']
 
 				# Only run training for fake videos, with an existing original and a single face
-				if os.path.exists(real_video_path) and not multiple_faces:
-					# Get batch
-					batch = BG.training_batch(fake_video_path, real_video_path, boxes = bounding_boxes, epoch = 1)
+				if not multiple_faces:
+					video_err = []
+					video_acc = []
+					batch_generator = BG.evaluation_batch(video_path, boxes = bounding_boxes)
+					while True:
+						try:
+							# Get batch
+							batch = next(batch_generator)
+							# Feed batch through network
+							output = self.network(batch.detach())
+							if self.model_name == 'inception_v3':
+								output = output[0]
+							# Get label tensor for this video
+							if label == 'REAL':
+								labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
+							else:
+								labels = torch.tensor([0]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
+							labels = labels.view(-1,1)
+							# Compute loss and do backpropagation
+							err = self.criterion(output, labels)
 
-					# Feed batch through network
-					output = self.network(batch.detach())
-					if self.model_name == 'inception_v3':
-						output = output[0]
-					# Compute loss and do backpropagation
-					err = self.criterion(output, labels)
+							# Get loss
+							err = err.item()
+							# Calculating accuracy for mixed samples
+							o = output.cpu().detach().numpy()
+							o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
+							l = labels.cpu().detach().numpy()
+							acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
+							# Add accuracy, error to lists & increment iteration
+							video_err.append(err)
+							video_acc.append(acc)
+						
+						except StopIteration:
+							# Append average of video loss and accuracy
+							overall_err.append(np.mean(video_err))
+							overall_acc.append(np.mean(video_acc))
+							break
 
-					# Get loss
-					err = err.item()
-					# Calculating accuracy for mixed samples
-					o = output.cpu().detach().numpy()
-					o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
-					l = labels.cpu().detach().numpy()
-					acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
-					# Add accuracy, error to lists & increment iteration
-					errors.append(err)
-					accuracies.append(acc)
 					# Refresh tqdm postfix
-					postfix_dict = {'loss': round(np.mean(errors), 2), 'acc': round(np.mean(accuracies), 2)}
+					postfix_dict = {'loss': round(np.mean(overall_err), 2), 'acc': round(np.mean(overall_acc), 2)}
 					progress_bar.set_postfix(postfix_dict, refresh = False)
-
-
-
-	def test_kaggle(self, kaggle_dataset_path, batch_size, iterations = 20):
-
-		# Creating batch generator
-		BG = BatchGenerator(self.model_name, self.device, batch_size)
-		# Generator for random folder paths in real/fake video directories
-		folder_paths = [os.path.join(kaggle_dataset_path, x) for x in kaggle_test_folders]
-
-		test_loss = []
-		test_acc = []
-		sample_nr = 0
-
-		# Run training loop, a folder of videos is an epoch
-		for folder_path in folder_paths:
-			# Possibly replace with a generator?
-			videos = os.listdir(folder_path)
-			random.shuffle(videos)
-			videos = (x for x in videos if x not in ["metadata.json", "multiple_faces", "bad_samples"])
-			metadata = os.path.join(folder_path, "metadata.json")
-			metadata = json.load(open(metadata))
-
-			for _ in range(iterations):
-				video = next(videos)
-				sample_nr += 1
-				accuracies = []
-				errors = []
-				# Get label from metadata.json
-				label = metadata[video]['label']
-
-				if label == 'REAL':
-					labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
-				else:
-					labels = torch.tensor([0]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
-				labels = labels.view(-1,1)
-				# Get batch generator
-				video_path = os.path.join(folder_path, video)
-				batch_generator = BG.single_video_batch(video_path = video_path)
-
-				batches = 0
-				while True:
-					torch.cuda.empty_cache()
-					# Try to get next batch
-					try:
-						batch = next(batch_generator)
-
-						output = self.network(batch.detach())
-						if self.model_name == 'inception_v3':
-							output = output[0]
-						# Delete the batch to conserve memory
-						del batch
-						torch.cuda.empty_cache()
-						# Compute loss
-						err = self.criterion(output, labels)
-
-						# Calculating accuracy for mixed samples
-						o = output.cpu().detach().numpy()
-						o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
-						l = labels.cpu().detach().numpy()
-						acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
-						# Add accuracy, error to lists
-						errors.append(err.item())
-						accuracies.append(acc)
-
-						batches += 1
-
-					# If there are no more sequences to retrieve or the file cannot be opened
-					except StopIteration:
-						if batches > 0:
-							err = sum(errors)/batches
-							acc = sum(accuracies)/batches
-
-							test_loss.append(err)
-							test_acc.append(acc)
-
-							# Write iteration results to console
-							output_string = ">> Test sample [{}] Loss: {:3.2f} | Accuracy: {:05.2f}%".format(
-								sample_nr, err, acc)
-							print(output_string)
-						break
-
-		test_loss = sum(test_loss) / len(test_loss)
-		test_acc = sum(test_acc) / len(test_acc)
-		print("Evaluation result: Loss: {} | Accuracy: {}".format(test_loss, test_acc))
-		return test_loss, test_acc
 
