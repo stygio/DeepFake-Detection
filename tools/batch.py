@@ -315,10 +315,10 @@ class BatchGenerator:
 		# Open the two videos
 		fake_video_handle = cv2.VideoCapture(fake_video_path)
 		fake_video_length = fake_video_handle.get(7)
-		assert frame_numbers[-1] < fake_video_length, "Fake video length too short for requested parameters."
+		assert frame_numbers[-1] < fake_video_length, "Fake video length too short for requested frames in " + fake_video_path
 		real_video_handle = cv2.VideoCapture(real_video_path)
 		real_video_length = real_video_handle.get(7)
-		assert frame_numbers[-1] < real_video_length, "Real video length too short for requested parameters."
+		assert frame_numbers[-1] < real_video_length, "Real video length too short for requested frames in " + real_video_path
 		fake_err, real_err = False, False
 		try:
 			# Check that the videos were opened successfully
