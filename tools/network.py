@@ -171,14 +171,14 @@ kaggle_test_folders = [	"dfdc_train_part_47",
 
 class Network:
 
-	def __init__(self, model_name = "xception", model_weights_path = None):
+	def __init__(self, model_name, model_weights_path = None, training = False):
 		
 		# Model name
 		self.model_name = model_name
 		# Choose torch device
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# Setup chosen CNN model
-		self.network = get_model(model_name, model_weights_path).to(self.device)
+		self.network = get_model(model_name, training, model_weights_path).to(self.device)
 		for param in self.network.parameters():
 				param.requires_grad = False
 		# Loss function and optimizer
@@ -491,7 +491,7 @@ class Network:
 		kaggle_dataset_path	- path to Kaggle DFDC dataset on local machine
 	"""
 	def train_kaggle(self, kaggle_dataset_path, epochs = 5, batch_size = 10, 
-			lr = 0.001, momentum = 0.9, only_fc_layer = False, start_folder = None):
+			lr = 0.00001, momentum = 0.9, only_fc_layer = False, start_folder = None):
 		
 		# Assert the batch_size is even
 		assert batch_size % 2 == 0, "Uneven batch_size equal to {}".format(batch_size)
@@ -591,13 +591,13 @@ class Network:
 
 					# Log results
 					log_string = "{},{},{},{},{:.2f},{:.2f},\n".format(
-								epoch, os.path.split(folder_path)[1], 
+								epoch, os.path.split(os.path.dirname(real_video_path))[1], 
 								os.path.basename(fake_video_path), os.path.basename(real_video_path), 
 								err, acc)
 					misc.add_to_log(log_file = log_file, log_string = log_string)
 
 			# Save the model weights after each folder
-			self.save_model("kaggle_" + epoch, only_fc_layer)
+			self.save_model("kaggle_" + str(epoch), only_fc_layer)
 
 
 	def evaluate_kaggle(self, kaggle_dataset_path, mode, batch_size):

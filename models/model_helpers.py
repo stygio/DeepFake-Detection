@@ -10,16 +10,17 @@ from models.resnext101 import resnext101
 """
 Function for retrieving a chosen model
 	model_name - which model to choose
-	model_path - model path if a local version should be used	
+	model_path - model path if a local version should be used
+	training   - activates the dropout layer
 """
-def get_model(model_name, model_path = None):
+def get_model(model_name, training, model_path = None):
 	network = None
 
 	if model_name == "xception":
 		if model_path == None:
-			network = xception(pretrained = True)
+			network = xception(pretrained = True, training = training)
 		else:
-			network = xception(pretrained = False)
+			network = xception(pretrained = False, training = training)
 			network.load_state_dict(load(model_path))
 	elif model_name == "inception_v3":
 		if model_path == None:

@@ -110,9 +110,11 @@ class Xception(nn.Module):
 
     Base version with no FC layer at the end (to be inherited from)
     """
-    def __init__(self):
+    def __init__(self, training = False):
         # Constructor
         super(Xception, self).__init__()
+
+        self.training = training
 
         self.conv1 = nn.Conv2d(3, 32, 3,2, 0, bias=False)
         self.bn1 = nn.BatchNorm2d(32)
@@ -144,10 +146,8 @@ class Xception(nn.Module):
         #do relu here
         self.conv4 = SeparableConv2d(1536,2048,3,1,1)
         self.bn4 = nn.BatchNorm2d(2048)
+        self.dropout = nn.Dropout(0.5)
         self.fc = nn.Linear(2048, 1000)
-
-        # self.sigmoid = nn.Sigmoid()
-
 
         # Initialize weights
         self.init_weights()
@@ -193,18 +193,19 @@ class Xception(nn.Module):
 
         # Classifier
         x = F.adaptive_avg_pool2d(x, (1, 1))
-        x = x.view(x.size(0), -1)
+        x = torch.flatten(x, 1)
+        if self.training:
+            x = self.dropout(x)
         x = self.fc(x)
-        # x = self.sigmoid(x)
 
         return x
 
 
-def xception(pretrained = True, **kwargs):
+def xception(pretrained, training):
     """
     Construct Xception.
     """
-    model = Xception(**kwargs)
+    model = Xception(training)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['xception']))
     num_features = model.fc.in_features

@@ -56,7 +56,7 @@ if __name__ == '__main__':
 			raise Exception("Invalid choice for only_fc_layer '{}'".format(only_fc_layer))
 		only_fc_layer = True if only_fc_layer == 'True' else False
 
-		net = Network(model_name = model_name, model_weights_path = model_path)
+		net = Network(model_name = model_name, model_weights_path = model_path, training = True)
 		net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
 	
 
