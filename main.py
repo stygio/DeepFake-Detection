@@ -48,7 +48,6 @@ if __name__ == '__main__':
 		if not isdir(dataset_path):
 			raise Exception("Invalid dataset path '{}'".format(dataset_path)) 
 
-		start_folder 	= int(	input("Start from folder: ")) if model_path else None
 		epochs 			= int(	input("Epochs: "))
 		batch_size 		= int(	input("Batch size (even): "))
 		only_fc_layer	= str(	input("Only FC layer {True, False}: "))
