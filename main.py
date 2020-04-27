@@ -41,22 +41,23 @@ if __name__ == '__main__':
 
 
 	if mode == 'train':
-		dataset_name 	= str(	input("Dataset name {kaggle, face_forensics}: "))
-		if dataset_name not in ['kaggle', 'face_forensics']:
-			raise Exception("Invalid dataset name '{}'".format(dataset_name))
-		dataset_path 	= str(	input("Dataset path (absolute path): "))
-		if not isdir(dataset_path):
-			raise Exception("Invalid dataset path '{}'".format(dataset_path)) 
+		# dataset_name 	= str(	input("Dataset name {kaggle, face_forensics}: "))
+		# if dataset_name not in ['kaggle', 'face_forensics']:
+		# 	raise Exception("Invalid dataset name '{}'".format(dataset_name))
+		# dataset_path 	= str(	input("Dataset path (absolute path): "))
+		# if not isdir(dataset_path):
+		# 	raise Exception("Invalid dataset path '{}'".format(dataset_path)) 
 
-		epochs 			= int(	input("Epochs: "))
-		batch_size 		= int(	input("Batch size (even): "))
-		only_fc_layer	= str(	input("Only FC layer {True, False}: "))
-		if only_fc_layer not in ['True', 'False']:
-			raise Exception("Invalid choice for only_fc_layer '{}'".format(only_fc_layer))
-		only_fc_layer = True if only_fc_layer == 'True' else False
+		# epochs 			= int(	input("Epochs: "))
+		# batch_size 		= int(	input("Batch size (even): "))
+		# only_fc_layer	= str(	input("Only FC layer {True, False}: "))
+		# if only_fc_layer not in ['True', 'False']:
+		# 	raise Exception("Invalid choice for only_fc_layer '{}'".format(only_fc_layer))
+		# only_fc_layer = True if only_fc_layer == 'True' else False
 
 		net = Network(model_name = model_name, model_weights_path = model_path, training = True)
-		net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
+		# net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
+		net.train_kaggle("D:/Kaggle_Dataset", epochs = 1, batch_size = 10, only_fc_layer = False)
 	
 
 	elif mode == 'val' or mode == 'test':

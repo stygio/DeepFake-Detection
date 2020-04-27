@@ -65,7 +65,7 @@ class Network:
 		kaggle_dataset_path	- path to Kaggle DFDC dataset on local machine
 	"""
 	def train_kaggle(self, kaggle_dataset_path, epochs = 5, batch_size = 10, 
-			lr = 0.00001, momentum = 0.9, only_fc_layer = False, start_folder = None):
+			lr = 0.00001, momentum = 0.9, only_fc_layer = False):
 		
 		# Assert the batch_size is even
 		assert batch_size % 2 == 0, "Uneven batch_size equal to {}".format(batch_size)
