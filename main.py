@@ -41,6 +41,8 @@ if __name__ == '__main__':
 
 
 	if mode == 'train':
+		net = Network(model_name = model_name, model_weights_path = model_path, training = True)
+		
 		# dataset_name 	= str(	input("Dataset name {kaggle, face_forensics}: "))
 		# if dataset_name not in ['kaggle', 'face_forensics']:
 		# 	raise Exception("Invalid dataset name '{}'".format(dataset_name))
@@ -55,10 +57,13 @@ if __name__ == '__main__':
 		# 	raise Exception("Invalid choice for only_fc_layer '{}'".format(only_fc_layer))
 		# only_fc_layer = True if only_fc_layer == 'True' else False
 
-		net = Network(model_name = model_name, model_weights_path = model_path, training = True)
-		# net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
-		net.train_kaggle("D:/Kaggle_Dataset", only_fc_layer = True)
-	
+		try:
+			# net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
+			net.train_kaggle("D:/Kaggle_Dataset", only_fc_layer = True)
+		except KeyboardInterrupt:
+			print("Execution ended by KeyboardInterrupt.")
+			net.save_model('kaggle_interrupted', True)
+
 
 	elif mode == 'val' or mode == 'test':
 		net = Network(model_name = model_name, model_weights_path = model_path)
