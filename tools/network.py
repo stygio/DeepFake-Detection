@@ -1,19 +1,15 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as functional
 import torch.optim as optim
-import torchvision
-import torchvision.transforms as transforms
+
 import numpy as np
 import os
 import json
 import cv2
 import random
-import time
 from tqdm import tqdm
 
 import tools.miscellaneous as misc
-from tools import preprocessing
 from models.model_helpers import get_model
 from tools.batch import BatchGenerator
 
@@ -116,9 +112,9 @@ class Network:
 			# Shuffle training_samples and initialize progress bar
 			random.shuffle(training_samples)
 			progress_bar = tqdm(training_samples, desc = "epoch {}".format(epoch))
+			
 			# Grab samples and run iterations
-			for fake_video_path, real_video_path in progress_bar:
-				
+			for fake_video_path, real_video_path in progress_bar:	
 				# Retrieving dict of bounding boxes for faces
 				bb_path = os.path.join(os.path.dirname(real_video_path), "bounding_boxes")
 				bounding_boxes  = os.path.join(bb_path, os.path.splitext(os.path.basename(real_video_path))[0]) + ".json"
@@ -174,7 +170,7 @@ class Network:
 			self.save_model("kaggle_" + str(epoch), only_fc_layer)
 
 
-	def evaluate_kaggle(self, kaggle_dataset_path, mode, batch_size):
+	def evaluate_kaggle(self, kaggle_dataset_path, mode, batch_size = 32):
 		
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
@@ -188,69 +184,61 @@ class Network:
 			raise Exception("Invalid mode for <evaluate_kaggle>.")
 		folder_paths = [os.path.join(kaggle_dataset_path, x) for x in folders]
 
-		# Get the next folder of videos
+		# Construct list of evaluation samples in the form (absolute video path, label)
+		evaluation_samples = []
 		for folder_path in folder_paths:
 			videos = os.listdir(folder_path)
 			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples"]]
 			metadata = os.path.join(folder_path, "metadata.json")
 			metadata = json.load(open(metadata))
-			bb_path = os.path.join(folder_path, "bounding_boxes")
-			
-			# Iterations in this folder
-			overall_err = []
-			overall_acc = []
-			progress_bar = tqdm(videos, desc = os.path.split(folder_path)[1])
-			for video in progress_bar:
-				# Absolute path to video
+			for video in videos:
 				video_path = os.path.join(folder_path, video)
-				# Retrieving dict of bounding boxes for faces
-				bounding_boxes  = os.path.join(bb_path, os.path.splitext(os.path.basename(video_path))[0]) + ".json"
-				bounding_boxes = json.load(open(bounding_boxes))
-				# Retrieve the video's label
-				label = metadata[video]['label']
-				# Check if the video contains frames with multiple faces
-				multiple_faces = bounding_boxes['multiple_faces']
+				evaluation_samples.append((video_path, metadata[video]['label']))
 
-				# Only run training for fake videos, with an existing original and a single face
-				if not multiple_faces:
-					video_err = []
-					video_acc = []
-					batch_generator = BG.evaluation_batch(video_path, boxes = bounding_boxes)
-					while True:
-						try:
-							# Get batch
-							batch = next(batch_generator)
-							# Feed batch through network
-							output = self.network(batch.detach())
-							if self.model_name == 'inception_v3':
-								output = output[0]
-							# Get label tensor for this video
-							if label == 'REAL':
-								labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
-							else:
-								labels = torch.tensor([0]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
-							labels = labels.view(-1,1)
-							# Compute loss and do backpropagation
-							err = self.criterion(output, labels)
+		# Initialize lists or err/acc & progress bar
+		overall_err = []
+		overall_acc = []
+		progress_bar = tqdm(evaluation_samples, desc = "Validation")
+		
+		# Run evaluation loop
+		for video_path, label in progress_bar:			
+			# Retrieving dict of bounding boxes for faces
+			bb_path = os.path.join(os.path.dirname(video_path), "bounding_boxes")
+			bounding_boxes  = os.path.join(bb_path, os.path.splitext(os.path.basename(video_path))[0]) + ".json"
+			bounding_boxes = json.load(open(bounding_boxes))
+			# Check if the video contains frames with multiple faces
+			multiple_faces = bounding_boxes['multiple_faces']
 
-							# Get loss
-							err = err.item()
-							# Calculating accuracy for mixed samples
-							o = output.cpu().detach().numpy()
-							o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
-							l = labels.cpu().detach().numpy()
-							acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
-							# Add accuracy, error to lists & increment iteration
-							video_err.append(err)
-							video_acc.append(acc)
-						
-						except StopIteration:
-							# Append average of video loss and accuracy
-							overall_err.append(np.mean(video_err))
-							overall_acc.append(np.mean(video_acc))
-							break
+			# Only run training for fake videos, with an existing original and a single face
+			if not multiple_faces:
 
-					# Refresh tqdm postfix
-					postfix_dict = {'loss': round(np.mean(overall_err), 2), 'acc': round(np.mean(overall_acc), 2)}
-					progress_bar.set_postfix(postfix_dict, refresh = False)
+				# Get batch
+				batch = BG.evaluation_batch(video_path, boxes = bounding_boxes)
+				# Feed batch through network
+				output = self.network(batch.detach())
+				if self.model_name == 'inception_v3':
+					output = output[0]
+				# Get label tensor for this video
+				if label == 'REAL':
+					labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
+				else:
+					labels = torch.tensor([0]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
+				labels = labels.view(-1,1)
+				# Compute loss
+				err = self.criterion(output, labels)
+
+				# Get loss
+				err = err.item()
+				# Calculating accuracy for mixed samples
+				o = output.cpu().detach().numpy()
+				o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
+				l = labels.cpu().detach().numpy()
+				acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
+				# Add accuracy, error to lists & increment iteration
+				overall_err.append(err)
+				overall_acc.append(acc)
+
+				# Refresh tqdm postfix
+				postfix_dict = {'loss': round(np.mean(overall_err), 2), 'acc': round(np.mean(overall_acc), 2)}
+				progress_bar.set_postfix(postfix_dict, refresh = False)
 

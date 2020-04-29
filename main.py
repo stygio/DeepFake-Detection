@@ -67,7 +67,7 @@ if __name__ == '__main__':
 
 	elif mode == 'val' or mode == 'test':
 		net = Network(model_name = model_name, model_weights_path = model_path)
-		net.evaluate_kaggle("D:/Kaggle_Dataset", mode = mode, batch_size = 50)	
+		net.evaluate_kaggle("D:/Kaggle_Dataset", mode = mode, batch_size = 32)	
 
 	elif mode == 'detect':
 		print("To be implemeneted in a future release.")

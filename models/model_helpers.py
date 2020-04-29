@@ -21,7 +21,7 @@ def get_model(model_name, training, model_path = None):
 			network = xception(pretrained = True)
 		else:
 			network = xception(pretrained = False)
-			network.load_state_dict(load(model_path))
+			network.load_state_dict(load(model_path), strict = False)
 	elif model_name == "inception_v3":
 		if model_path == None:
 			network = inception_v3(pretrained = True)
