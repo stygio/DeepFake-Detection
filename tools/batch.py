@@ -308,17 +308,22 @@ class BatchGenerator:
 		fake_video_path	- path to the altered video
 		real_video_path	- path to the original video the fake is based on
 	"""
-	def training_batch(self, fake_video_path, real_video_path, boxes, epoch, n = 10):
-		frame_numbers = [epoch]
-		for _ in range(int(self.batch_size/2)):
-			frame_numbers.append(frame_numbers[-1] + n)
+	def training_batch(self, fake_video_path, real_video_path, boxes, epoch):
 		# Open the two videos
 		fake_video_handle = cv2.VideoCapture(fake_video_path)
 		fake_video_length = fake_video_handle.get(7)
-		assert frame_numbers[-1] < fake_video_length, "Fake video length too short for requested frames in " + fake_video_path
 		real_video_handle = cv2.VideoCapture(real_video_path)
 		real_video_length = real_video_handle.get(7)
+		
+		# Calculate which frames to grab from the video
+		n = int(real_video_length/int(self.batch_size/2))
+		assert n >= 1, "Video length smaller than half of batch_size in " + real_video_path
+		frame_numbers = [epoch]
+		for _ in range(int(self.batch_size/2) - 1):
+			frame_numbers.append(frame_numbers[-1] + n)
+		assert frame_numbers[-1] < fake_video_length, "Fake video length too short for requested frames in " + fake_video_path
 		assert frame_numbers[-1] < real_video_length, "Real video length too short for requested frames in " + real_video_path
+		
 		fake_err, real_err = False, False
 		try:
 			# Check that the videos were opened successfully
@@ -371,14 +376,15 @@ class BatchGenerator:
 		real_video_path	- path to the original video the fake is based on
 	"""
 	def evaluation_batch(self, video_path, boxes):
-		frame_numbers = [0]
 		# Open the video
 		video_handle = cv2.VideoCapture(video_path)
 		video_length = video_handle.get(7)
+		
 		# Calculate which frames to grab from the video
 		n = int(video_length/self.batch_size)
 		assert n >= 1, "Video length smaller than batch_size in " + video_path
-		for _ in range(int(self.batch_size)):
+		frame_numbers = [0]
+		for _ in range(int(self.batch_size) - 1):
 			frame_numbers.append(frame_numbers[-1] + n)
 		assert frame_numbers[-1] < video_length, "Video length too short for requested frames in " + video_path
 		

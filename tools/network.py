@@ -125,7 +125,7 @@ class Network:
 				# Only run training for fake videos, with an existing original and a single face
 				if os.path.exists(real_video_path) and not multiple_faces:
 					# Get batch
-					batch = BG.training_batch(fake_video_path, real_video_path, boxes = bounding_boxes, epoch = epoch, n = 15)
+					batch = BG.training_batch(fake_video_path, real_video_path, boxes = bounding_boxes, epoch = epoch)
 					# print(">> Epoch [{}/{}] Processing: {} and {}".format(
 					# 			epoch, epochs, fake_video_path, real_video_path))
 
