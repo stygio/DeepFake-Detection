@@ -110,11 +110,9 @@ class Xception(nn.Module):
 
     Base version with no FC layer at the end (to be inherited from)
     """
-    def __init__(self, training = False):
+    def __init__(self):
         # Constructor
         super(Xception, self).__init__()
-
-        self.training = training
 
         self.conv1 = nn.Conv2d(3, 32, 3,2, 0, bias=False)
         self.bn1 = nn.BatchNorm2d(32)
@@ -146,7 +144,6 @@ class Xception(nn.Module):
         #do relu here
         self.conv4 = SeparableConv2d(1536,2048,3,1,1)
         self.bn4 = nn.BatchNorm2d(2048)
-        self.dropout = nn.Dropout(0.5)
         self.fc = nn.Linear(2048, 1000)
 
         # Initialize weights
@@ -194,21 +191,61 @@ class Xception(nn.Module):
         # Classifier
         x = F.adaptive_avg_pool2d(x, (1, 1))
         x = torch.flatten(x, 1)
-        if self.training:
-            x = self.dropout(x)
-        x = self.fc(x)
+        # x = self.fc(x)
 
         return x
 
 
-def xception(pretrained, training):
+class MyXception(Xception):
+    """
+    My version of Xception with a modified classifier.
+    """
+    def __init__(self):
+        # Constructor
+        super(MyXception, self).__init__()
+
+        self.fc1 = nn.Linear(2048, 512)
+        self.dropout = nn.Dropout(0.5)
+        self.fc2 = nn.Linear(512, 1)
+
+        # Initializing fc layers
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                # Use Xavier initialization
+                nn.init.xavier_normal_(m.weight, gain = 1)
+
+    def forward(self, x):
+        # Use forward pass implementation from base Xception class
+        x = super(MyXception, self).forward(x)
+
+        x = self.fc1(x)
+        x = F.dropout(x, training = self.training)
+        x = self.fc2(x)
+
+        return x
+
+    def unfreeze_classifier(self):
+        for param in self.fc1.parameters():
+            param.requires_grad = True
+        for param in self.fc2.parameters():
+            param.requires_grad = True
+
+
+def xception(pretrained):
     """
     Construct Xception.
     """
-    model = Xception(training)
+    model = MyXception()
+
+    # Load weights
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['xception']))
-    num_features = model.fc.in_features
-    model.fc = nn.Linear(num_features, 1)
+        model_dict = model.state_dict()
+        pretrained_dict = model_zoo.load_url(model_urls['xception'])
+        # 1. filter out unnecessary keys
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        # 2. overwrite entries in the existing state dict
+        model_dict.update(pretrained_dict) 
+        # 3. load the new state dict
+        model.load_state_dict(model_dict)
 
     return model

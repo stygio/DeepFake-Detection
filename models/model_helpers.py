@@ -18,9 +18,9 @@ def get_model(model_name, training, model_path = None):
 
 	if model_name == "xception":
 		if model_path == None:
-			network = xception(pretrained = True, training = training)
+			network = xception(pretrained = True)
 		else:
-			network = xception(pretrained = False, training = training)
+			network = xception(pretrained = False)
 			network.load_state_dict(load(model_path))
 	elif model_name == "inception_v3":
 		if model_path == None:
@@ -42,5 +42,15 @@ def get_model(model_name, training, model_path = None):
 			network.load_state_dict(load(model_path))
 	else:
 		raise Exception("Invalid model chosen.")
+
+	# Disable gradients
+	for param in network.parameters():
+		param.requires_grad = False
+
+	# Set model mode (self.training True/False)
+	if training:
+		network = network.train()
+	else:
+		network = network.eval()
 
 	return network

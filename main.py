@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
 		net = Network(model_name = model_name, model_weights_path = model_path, training = True)
 		# net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
-		net.train_kaggle("D:/Kaggle_Dataset", epochs = 1, batch_size = 10, only_fc_layer = False)
+		net.train_kaggle("D:/Kaggle_Dataset", only_fc_layer = True)
 	
 
 	elif mode == 'val' or mode == 'test':

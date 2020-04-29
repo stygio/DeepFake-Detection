@@ -35,10 +35,10 @@ class Network:
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# Setup chosen CNN model
 		self.network = get_model(model_name, training, model_weights_path).to(self.device)
-		for param in self.network.parameters():
-				param.requires_grad = False
 		# Loss function and optimizer
 		self.criterion = nn.BCEWithLogitsLoss()
+
+		# print(self.network)
 
 
 	"""
@@ -64,26 +64,20 @@ class Network:
 	Function for training chosen model on kaggle data.
 		kaggle_dataset_path	- path to Kaggle DFDC dataset on local machine
 	"""
-	def train_kaggle(self, kaggle_dataset_path, epochs = 5, batch_size = 10, 
-			lr = 0.00001, momentum = 0.9, only_fc_layer = False):
+	def train_kaggle(self, kaggle_dataset_path, epochs = 1, batch_size = 10, 
+			lr = 0.0001, momentum = 0.9, only_fc_layer = False):
 		
 		# Assert the batch_size is even
 		assert batch_size % 2 == 0, "Uneven batch_size equal to {}".format(batch_size)
-
-		# Setup gradients
-		if only_fc_layer:
-			for param in self.network.fc.parameters():
-				param.requires_grad = True
-		else:
-			for param in self.network.parameters():
-				param.requires_grad = True
 		
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
 		
 		# Initializing optimizer
-		optimizer = optim.Adam(self.network.fc.parameters())
-		# optimizer = optim.SGD(network.fc.parameters(), lr = lr, momentum = momentum)
+		# optimizer = optim.Adam()
+		if only_fc_layer:
+			self.network.unfreeze_classifier()
+		optimizer = optim.SGD(self.network.parameters(), lr = lr, momentum = momentum)
 
 		# Get label tensor
 		labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = self.device, requires_grad = False, dtype = torch.float)
@@ -160,7 +154,13 @@ class Network:
 					errors.append(err)
 					accuracies.append(acc)
 					# Refresh tqdm postfix
-					postfix_dict = {'loss': round(np.mean(errors), 2), 'acc': round(np.mean(accuracies), 2)}
+					if len(errors) < 5000:
+						training_loss = round(np.mean(errors), 2)
+						training_acc = round(np.mean(accuracies), 2)
+					else:
+						training_loss = round(np.mean(errors[-5000:]), 2)
+						training_acc = round(np.mean(accuracies[-5000:]), 2)
+					postfix_dict = {'loss': training_loss, 'acc': training_acc}
 					progress_bar.set_postfix(postfix_dict, refresh = False)
 
 					# Log results
