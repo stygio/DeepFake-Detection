@@ -1,5 +1,7 @@
 from tools import preprocessing
 
-dataset_path = "D:/Kaggle_Dataset"
+kaggle_path = "D:/Kaggle_Dataset"
+face_forensics_path = "D:/FaceForensics_Dataset"
 
-preprocessing.generate_bb_metadata_files(dataset_path)
+# preprocessing.generate_boundingboxes_kaggle(kaggle_path)
+preprocessing.generate_boundingboxes_ff(face_forensics_path)

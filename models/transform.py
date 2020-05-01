@@ -2,8 +2,8 @@ from torchvision import transforms
 
 data_augmentation = transforms.RandomOrder([
         transforms.RandomHorizontalFlip(0.5),
-        transforms.ColorJitter(brightness = 0.1, contrast = 0.1, saturation = 0.1, hue = 0.1),
-        transforms.RandomRotation(30)
+        transforms.ColorJitter(brightness = 0.2, contrast = 0.2, saturation = 0.2, hue = 0.2),
+        transforms.RandomRotation(40)
         ])
 
 model_transforms = {
