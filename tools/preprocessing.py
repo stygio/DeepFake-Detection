@@ -271,7 +271,7 @@ def face_location_metadata(video_path, batch_size, multiple_face_threshold = 0.1
 		return None
 
 
-def generate_boundingboxes_kaggle(dataset_path, mobilenet_gpu_allocation = 0.75, batch_size = 8):
+def generate_boundingboxes_kaggle(dataset_path, mobilenet_gpu_allocation = 0.75, batch_size = 1):
 	# Initialize face detector
 	initialize_mobilenet(mobilenet_gpu_allocation)
 	# Main loop iterating through folders and their files
@@ -318,7 +318,7 @@ def generate_boundingboxes_kaggle(dataset_path, mobilenet_gpu_allocation = 0.75,
 				copyfile(original_json, fake_json)
 
 
-def generate_boundingboxes_ff(dataset_path, mobilenet_gpu_allocation = 0.75, batch_size = 8):
+def generate_boundingboxes_ff(dataset_path, mobilenet_gpu_allocation = 0.7, batch_size = 16):
 	# Initialize face detector
 	initialize_mobilenet(mobilenet_gpu_allocation)
 
@@ -348,22 +348,41 @@ def generate_boundingboxes_ff(dataset_path, mobilenet_gpu_allocation = 0.75, bat
 			json.dump(metadata, metadata_file)
 			metadata_file.close()
 
-	# Copy bounding boxes for original videos to those of fakes
+	# # Copy bounding boxes for original videos to those of fakes
+	# for folder_path in fake_video_paths:
+	# 	label_metadata = os.path.join(folder_path, "metadata.json")
+	# 	label_metadata = json.load(open(label_metadata))
+	# 	bb_path = os.path.join(folder_path, "bounding_boxes")
+	# 	os.makedirs(bb_path, exist_ok=True)
+	# 	fake_videos = [x for x in os.listdir(folder_path) if x not in 
+	# 		["metadata.json", "multiple_faces", "bad_samples", "bounding_boxes"]]
+	# 	for video in fake_videos:
+	# 		fake_filename, _ = os.path.splitext(video)
+	# 		fake_json = os.path.join(bb_path, fake_filename) + ".json"
+
+	# 		# Only create the json if it hasn't been done yet
+	# 		if not os.path.isfile(fake_json):
+	# 			original_video = label_metadata[video]['original']
+	# 			original_filename, _ = os.path.splitext(original_video)
+	# 			original_json = os.path.join(real_video_path, 'bounding_boxes', original_filename) + ".json"
+	# 			copyfile(original_json, fake_json)
+
 	for folder_path in fake_video_paths:
-		label_metadata = os.path.join(folder_path, "metadata.json")
-		label_metadata = json.load(open(label_metadata))
 		bb_path = os.path.join(folder_path, "bounding_boxes")
 		os.makedirs(bb_path, exist_ok=True)
 		fake_videos = [x for x in os.listdir(folder_path) if x not in 
 			["metadata.json", "multiple_faces", "bad_samples", "bounding_boxes"]]
-		for video in fake_videos:
-			fake_filename, _ = os.path.splitext(video)
-			fake_json = os.path.join(bb_path, fake_filename) + ".json"
-
+		# Extract face bounding boxes for fake videos
+		for video in tqdm(fake_videos, desc = folder_path.split('\\')[-3]):
+			video_path = os.path.join(folder_path, video)
+			video_filename, _ = os.path.splitext(video)
+			metadata_filename = os.path.join(bb_path, video_filename) + ".json"
+			
 			# Only create the json if it hasn't been done yet
-			if not os.path.isfile(fake_json):
-				original_video = label_metadata[video]['original']
-				original_filename, _ = os.path.splitext(original_video)
-				original_json = os.path.join(real_video_path, 'bounding_boxes', original_filename) + ".json"
-				copyfile(original_json, fake_json)
+			if not os.path.isfile(metadata_filename):
+				# metadata = json.JSONEncoder().encode(face_location_metadata(video_path, batch_size))
+				metadata = face_location_metadata(video_path, batch_size)
+				metadata_file = open(metadata_filename, "w+")
+				json.dump(metadata, metadata_file)
+				metadata_file.close()
 

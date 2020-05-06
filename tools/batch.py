@@ -308,7 +308,7 @@ class BatchGenerator:
 		fake_video_path	- path to the altered video
 		real_video_path	- path to the original video the fake is based on
 	"""
-	def training_batch(self, fake_video_path, real_video_path, boxes, epoch):
+	def training_batch(self, fake_video_path, real_video_path, fake_boxes, real_boxes, epoch):
 		# Open the two videos
 		fake_video_handle = cv2.VideoCapture(fake_video_path)
 		fake_video_length = fake_video_handle.get(7)
@@ -316,8 +316,10 @@ class BatchGenerator:
 		real_video_length = real_video_handle.get(7)
 		
 		# Calculate which frames to grab from the video
-		n = int(real_video_length/int(self.batch_size/2))
-		assert n >= 1, "Video length smaller than half of batch_size in " + real_video_path
+		shorter_video_path = fake_video_path if fake_video_length <= real_video_length else real_video_path
+		shorter_video_length = fake_video_length if fake_video_length <= real_video_length else real_video_length
+		n = int(shorter_video_length/int(self.batch_size/2))
+		assert n >= 1, "Video length smaller than half of batch_size in " + shorter_video_path
 		frame_numbers = [epoch]
 		for _ in range(int(self.batch_size/2) - 1):
 			frame_numbers.append(frame_numbers[-1] + n)
@@ -344,11 +346,15 @@ class BatchGenerator:
 			# Retrieve boundingbox information and crop images
 			fake_faces, real_faces = [], []
 			for i in range(int(self.batch_size/2)):
-				top 	= boxes[str(frame_numbers[i])]['0']['top']
-				bottom 	= boxes[str(frame_numbers[i])]['0']['bottom']
-				left 	= boxes[str(frame_numbers[i])]['0']['left']
-				right 	= boxes[str(frame_numbers[i])]['0']['right']
+				top 	= fake_boxes[str(frame_numbers[i])]['0']['top']
+				bottom 	= fake_boxes[str(frame_numbers[i])]['0']['bottom']
+				left 	= fake_boxes[str(frame_numbers[i])]['0']['left']
+				right 	= fake_boxes[str(frame_numbers[i])]['0']['right']
 				fake_face = preprocessing.crop_image(fake_frames[i], (top, bottom, left, right))
+				top 	= real_boxes[str(frame_numbers[i])]['0']['top']
+				bottom 	= real_boxes[str(frame_numbers[i])]['0']['bottom']
+				left 	= real_boxes[str(frame_numbers[i])]['0']['left']
+				right 	= real_boxes[str(frame_numbers[i])]['0']['right']
 				real_face = preprocessing.crop_image(real_frames[i], (top, bottom, left, right))
 				fake_faces.append(self.tensor_transform(self.training_transform(Image.fromarray(fake_face))))
 				real_faces.append(self.tensor_transform(self.training_transform(Image.fromarray(real_face))))

@@ -56,7 +56,125 @@ class Network:
 		torch.save(self.network.state_dict(), filename)
 
 
-		"""
+	"""
+	Function for training chosen model on kaggle data.
+		kaggle_dataset_path	- path to Kaggle DFDC dataset on local machine
+	"""
+	def train_faceforensics(self, ff_dataset_path, epochs = 1, batch_size = 10, 
+			lr = 0.0001, momentum = 0.9, only_fc_layer = False):
+		
+		# Assert the batch_size is even
+		assert batch_size % 2 == 0, "Uneven batch_size equal to {}".format(batch_size)
+		
+		# Creating batch generator
+		BG = BatchGenerator(self.model_name, self.device, batch_size)
+		
+		# Unfreezing gradients
+		if only_fc_layer:
+			self.network.unfreeze_classifier()
+
+		# Get label tensor
+		labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = self.device, requires_grad = False, dtype = torch.float)
+		labels = labels.view(-1,1)
+		
+		# List of sorted folders in the kaggle directory
+		original_sequences = os.path.join(ff_dataset_path, 'original_sequences')
+		real_folder = os.path.join(original_sequences, 'c23', 'videos')
+		manipulated_sequences = os.path.join(ff_dataset_path, 'manipulated_sequences')
+		fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences)]
+		fake_folders = [os.path.join(x, 'c23', 'videos') for x in fake_folders]
+
+		# Create log file
+		filename = self.model_name + "_ff"
+		filename += "_fc" if only_fc_layer else "_full"
+		log_header = "Epoch,Folder,FakeVideo,RealVideo,Loss,Accuracy,\n"
+		log_file = misc.create_log(filename, header_string = log_header)
+
+		training_samples = []
+		for folder_path in fake_folders:
+			videos = os.listdir(folder_path)
+			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces"]]
+			metadata = os.path.join(folder_path, "metadata.json")
+			metadata = json.load(open(metadata))
+			# Added tuples of fake and corresponding real videos to the training_samples
+			for video in videos:
+				# Check if video is labeled as fake
+				if metadata[video]['split'] == 'train':
+					fake_video_path = os.path.join(folder_path, video)
+					real_video_path = os.path.join(real_folder, metadata[video]['original'])
+					training_samples.append((fake_video_path, real_video_path))
+		
+		# Run training loop
+		for epoch in range(1, epochs+1):
+			accuracies = []
+			errors = []
+			
+			# Initializing optimizer with appropriate lr
+			optimizer = optim.SGD(self.network.parameters(), lr = lr * 0.8**(epoch-1), momentum = momentum)
+
+			# Shuffle training_samples and initialize progress bar
+			random.shuffle(training_samples)
+			progress_bar = tqdm(training_samples, desc = "epoch {}".format(epoch))
+			
+			# Grab samples and run iterations
+			for fake_video_path, real_video_path in progress_bar:	
+				# Retrieving dicts of bounding boxes for faces
+				real_bb_path = os.path.join(os.path.dirname(real_video_path), "bounding_boxes")
+				real_bb  = os.path.join(real_bb_path, os.path.splitext(os.path.basename(real_video_path))[0]) + ".json"
+				real_bb = json.load(open(real_bb))
+				fake_bb_path = os.path.join(os.path.dirname(fake_video_path), "bounding_boxes")
+				fake_bb  = os.path.join(fake_bb_path, os.path.splitext(os.path.basename(fake_video_path))[0]) + ".json"
+				fake_bb = json.load(open(fake_bb))
+				# Check if the video contains frames with multiple faces
+				multiple_faces = real_bb['multiple_faces'] or fake_bb['multiple_faces']
+
+				# Only run training for fake videos, with an existing original and a single face
+				if os.path.exists(real_video_path) and not multiple_faces:
+					# Get batch
+					try:
+						batch = BG.training_batch(fake_video_path, real_video_path, fake_boxes = fake_bb, real_boxes = real_bb, epoch = epoch)
+					except:
+						print('Fake video: {}, Real video: {}'.format(fake_video_path, real_video_path))
+						raise
+					# print(">> Epoch [{}/{}] Processing: {} and {}".format(
+					# 			epoch, epochs, fake_video_path, real_video_path))
+
+					self.network.zero_grad()
+					output = self.network(batch.detach())
+					if self.model_name == 'inception_v3':
+						output = output[0]
+					# Compute loss and do backpropagation
+					err = self.criterion(output, labels)
+					err.backward()
+					# Optimizer step applying gradients from results
+					optimizer.step()
+
+					# Get loss
+					err = err.item()
+					# Calculating accuracy for mixed samples
+					o = output.cpu().detach().numpy()
+					o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
+					l = labels.cpu().detach().numpy()
+					acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
+					# Add accuracy, error to lists & increment iteration
+					errors.append(err)
+					accuracies.append(acc)
+					# Refresh tqdm postfix
+					postfix_dict = {'loss': round(np.mean(errors), 2), 'acc': round(np.mean(accuracies), 2)}
+					progress_bar.set_postfix(postfix_dict, refresh = False)
+
+					# Log results
+					log_string = "{},{},{},{},{:.2f},{:.2f},\n".format(
+								epoch, os.path.split(os.path.dirname(real_video_path))[1], 
+								os.path.basename(fake_video_path), os.path.basename(real_video_path), 
+								err, acc)
+					misc.add_to_log(log_file = log_file, log_string = log_string)
+
+			# Save the model weights after each folder
+			self.save_model("ff_" + str(epoch), only_fc_layer)
+
+
+	"""
 	Function for training chosen model on kaggle data.
 		kaggle_dataset_path	- path to Kaggle DFDC dataset on local machine
 	"""
@@ -125,7 +243,7 @@ class Network:
 				# Only run training for fake videos, with an existing original and a single face
 				if os.path.exists(real_video_path) and not multiple_faces:
 					# Get batch
-					batch = BG.training_batch(fake_video_path, real_video_path, boxes = bounding_boxes, epoch = epoch)
+					batch = BG.training_batch(fake_video_path, real_video_path, fake_boxes = bounding_boxes, real_boxes = bounding_boxes, epoch = epoch)
 					# print(">> Epoch [{}/{}] Processing: {} and {}".format(
 					# 			epoch, epochs, fake_video_path, real_video_path))
 

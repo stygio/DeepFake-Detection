@@ -80,7 +80,7 @@ def yield_video_frames(video_handle, segment_length, is_color = True):
 	video_length = video_handle.get(7)
 	current_frame = 0
 
-	while current_frame + segment_length < video_length:
+	while current_frame + segment_length <= video_length:
 		frame_sequence = []
 		for _ in range(int(segment_length)):
 			try:
