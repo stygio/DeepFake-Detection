@@ -60,7 +60,7 @@ class Network:
 	Function for training chosen model on kaggle data.
 		kaggle_dataset_path	- path to Kaggle DFDC dataset on local machine
 	"""
-	def train_faceforensics(self, ff_dataset_path, epochs = 1, batch_size = 10, 
+	def train_faceforensics(self, ff_dataset_path, epochs = 1, batch_size = 24, 
 			lr = 0.0001, momentum = 0.9, only_fc_layer = False):
 		
 		# Assert the batch_size is even
@@ -261,7 +261,7 @@ class Network:
 	Function for training chosen model on kaggle data.
 		kaggle_dataset_path	- path to Kaggle DFDC dataset on local machine
 	"""
-	def train_kaggle(self, kaggle_dataset_path, epochs = 1, batch_size = 10, 
+	def train_kaggle(self, kaggle_dataset_path, epochs = 1, batch_size = 24, 
 			lr = 0.0001, momentum = 0.9, only_fc_layer = False):
 		
 		# Assert the batch_size is even
@@ -371,7 +371,7 @@ class Network:
 			self.save_model("kaggle_" + str(epoch), only_fc_layer)
 
 
-	def evaluate_kaggle(self, kaggle_dataset_path, mode, batch_size = 32):
+	def evaluate_kaggle(self, kaggle_dataset_path, mode, batch_size = 24):
 		
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
