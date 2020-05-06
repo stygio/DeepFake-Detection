@@ -81,7 +81,13 @@ if __name__ == '__main__':
 
 	elif mode == 'val' or mode == 'test':
 		net = Network(model_name = model_name, model_weights_path = model_path)
-		net.evaluate_kaggle(kaggle_path, mode = mode, batch_size = 32)	
+		if dataset == 'kaggle':
+			net.evaluate_kaggle(kaggle_path, mode = mode, batch_size = 24)
+		elif dataset == 'faceforensics':
+			net.evaluate_faceforensics(ff_path, mode = mode, batch_size = 24)	
+		else:
+			raise Exception("Invalid dataset choice: " + dataset)
+
 
 	elif mode == 'detect':
 		print("To be implemeneted in a future release.")

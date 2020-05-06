@@ -77,18 +77,18 @@ class Network:
 		labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = self.device, requires_grad = False, dtype = torch.float)
 		labels = labels.view(-1,1)
 		
+		# Create log file
+		filename = self.model_name + "_ff"
+		filename += "_fc" if only_fc_layer else "_full"
+		log_header = "Epoch,Folder,FakeVideo,RealVideo,Loss,Accuracy,\n"
+		log_file = misc.create_log(filename, header_string = log_header)
+		
 		# List of sorted folders in the kaggle directory
 		original_sequences = os.path.join(ff_dataset_path, 'original_sequences')
 		real_folder = os.path.join(original_sequences, 'c23', 'videos')
 		manipulated_sequences = os.path.join(ff_dataset_path, 'manipulated_sequences')
 		fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences)]
 		fake_folders = [os.path.join(x, 'c23', 'videos') for x in fake_folders]
-
-		# Create log file
-		filename = self.model_name + "_ff"
-		filename += "_fc" if only_fc_layer else "_full"
-		log_header = "Epoch,Folder,FakeVideo,RealVideo,Loss,Accuracy,\n"
-		log_file = misc.create_log(filename, header_string = log_header)
 
 		training_samples = []
 		for folder_path in fake_folders:
@@ -172,6 +172,89 @@ class Network:
 
 			# Save the model weights after each folder
 			self.save_model("ff_" + str(epoch), only_fc_layer)
+
+
+	def evaluate_faceforensics(self, ff_dataset_path, mode, batch_size = 24):
+		
+		# Creating batch generator
+		BG = BatchGenerator(self.model_name, self.device, batch_size)
+		
+		# List of sorted folders in the kaggle directory
+		original_sequences = os.path.join(ff_dataset_path, 'original_sequences')
+		real_folder = os.path.join(original_sequences, 'c23', 'videos')
+		manipulated_sequences = os.path.join(ff_dataset_path, 'manipulated_sequences')
+		fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences)]
+		fake_folders = [os.path.join(x, 'c23', 'videos') for x in fake_folders]
+
+		evaluation_samples = []
+		# Originals
+		videos = os.listdir(real_folder)
+		videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces"]]
+		metadata = os.path.join(real_folder, "metadata.json")
+		metadata = json.load(open(metadata))
+		for video in videos:
+			# Check if video is labeled as fake
+			if metadata[video]['split'] == mode:
+				real_video_path = os.path.join(real_folder, video)
+				evaluation_samples.append((real_video_path, 'REAL'))
+		# Fake videos
+		for folder_path in fake_folders:
+			videos = os.listdir(folder_path)
+			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces"]]
+			metadata = os.path.join(folder_path, "metadata.json")
+			metadata = json.load(open(metadata))
+			for video in videos:
+				# Check if video is labeled as fake
+				if metadata[video]['split'] == mode:
+					fake_video_path = os.path.join(folder_path, video)
+					evaluation_samples.append((fake_video_path, 'FAKE'))
+
+		# Initialize lists or err/acc & progress bar
+		overall_err = []
+		overall_acc = []
+		progress_bar = tqdm(evaluation_samples, desc = 'FaceForensics ' + mode)
+		
+		# Run evaluation loop
+		for video_path, label in progress_bar:			
+			# Retrieving dict of bounding boxes for faces
+			bb_path = os.path.join(os.path.dirname(video_path), "bounding_boxes")
+			bounding_boxes  = os.path.join(bb_path, os.path.splitext(os.path.basename(video_path))[0]) + ".json"
+			bounding_boxes = json.load(open(bounding_boxes))
+			# Check if the video contains frames with multiple faces
+			multiple_faces = bounding_boxes['multiple_faces']
+
+			# Only run training for fake videos, with an existing original and a single face
+			if not multiple_faces:
+
+				# Get batch
+				batch = BG.evaluation_batch(video_path, boxes = bounding_boxes)
+				# Feed batch through network
+				output = self.network(batch.detach())
+				if self.model_name == 'inception_v3':
+					output = output[0]
+				# Get label tensor for this video
+				if label == 'REAL':
+					labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
+				else:
+					labels = torch.tensor([0]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
+				labels = labels.view(-1,1)
+				# Compute loss
+				err = self.criterion(output, labels)
+
+				# Get loss
+				err = err.item()
+				# Calculating accuracy for mixed samples
+				o = output.cpu().detach().numpy()
+				o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
+				l = labels.cpu().detach().numpy()
+				acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
+				# Add accuracy, error to lists & increment iteration
+				overall_err.append(err)
+				overall_acc.append(acc)
+
+				# Refresh tqdm postfix
+				postfix_dict = {'loss': round(np.mean(overall_err), 2), 'acc': round(np.mean(overall_acc), 2)}
+				progress_bar.set_postfix(postfix_dict, refresh = False)
 
 
 	"""
