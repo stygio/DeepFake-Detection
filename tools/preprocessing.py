@@ -3,10 +3,8 @@ Library of functions for image preprocessing
 """
 
 import numpy as np
-import random
 import cv2
 from PIL import Image
-import torch
 import time
 import os
 import json
@@ -17,10 +15,6 @@ with warnings.catch_warnings():
 	warnings.filterwarnings("ignore", category = FutureWarning)
 	import tensorflow as tf
 
-from models import transform
-from tools import opencv_helpers
-from tools.miscellaneous import put_file_in_folder
-
 crop_factor = 1.3
 sess, image_tensor, boxes_tensor, scores_tensor, num_detections = None, None, None, None, None
 
@@ -29,6 +23,14 @@ def show_test_img(test_img):
 	cv2.imshow("test", test_img)
 	cv2.waitKey(0)
 	cv2.destroyAllWindows()
+
+
+def crop_image(img, box):
+	top, bottom, left, right = box
+	(img_height, img_width, _) = np.shape(img)
+	cropped_img = img[max(top, 0):min(bottom, img_height-1), max(left, 0):min(right, img_width-1)]
+
+	return cropped_img
 
 
 def initialize_mobilenet(gpu_allocation = 0.4):
@@ -50,14 +52,6 @@ def initialize_mobilenet(gpu_allocation = 0.4):
 		boxes_tensor = detection_graph.get_tensor_by_name('detection_boxes:0')    
 		scores_tensor = detection_graph.get_tensor_by_name('detection_scores:0')
 		num_detections = detection_graph.get_tensor_by_name('num_detections:0')
-
-
-def crop_image(img, box):
-	top, bottom, left, right = box
-	(img_height, img_width, _) = np.shape(img)
-	cropped_img = img[max(top, 0):min(bottom, img_height-1), max(left, 0):min(right, img_width-1)]
-
-	return cropped_img
 
 
 def get_mobilenet_faces(images, mobilenet_score_threshold = 0.35):
@@ -153,7 +147,7 @@ def get_faces(img):
 		# print("DEBUG: crop_height: {}, crop_width: {}, crop_diff: {}".format(crop_height, crop_width, crop_diff))
 		# print("DEBUG: top: {}, bottom: {}, left: {}, right: {}".format(top, bottom, left, right))
 		
-		# Append transformed face and its position in the image
+		# Append cropped face and its position in the image
 		faces.append(cropped_img)
 		face_positions.append((face_Y, face_X))
 
@@ -332,9 +326,9 @@ def generate_boundingboxes_ff(dataset_path, mobilenet_gpu_allocation = 0.7, batc
 	bb_path = os.path.join(real_video_path, "bounding_boxes")
 	os.makedirs(bb_path, exist_ok=True)
 	
+	# Extract face bounding boxes for original videos
 	original_videos = [x for x in os.listdir(real_video_path) if x not in 
 		["metadata.json", "multiple_faces", "bad_samples", "bounding_boxes"]]
-	# Extract face bounding boxes for original videos
 	for video in tqdm(original_videos, desc = "originals"):
 		video_path = os.path.join(real_video_path, video)
 		video_filename, _ = os.path.splitext(video)
@@ -348,25 +342,7 @@ def generate_boundingboxes_ff(dataset_path, mobilenet_gpu_allocation = 0.7, batc
 			json.dump(metadata, metadata_file)
 			metadata_file.close()
 
-	# # Copy bounding boxes for original videos to those of fakes
-	# for folder_path in fake_video_paths:
-	# 	label_metadata = os.path.join(folder_path, "metadata.json")
-	# 	label_metadata = json.load(open(label_metadata))
-	# 	bb_path = os.path.join(folder_path, "bounding_boxes")
-	# 	os.makedirs(bb_path, exist_ok=True)
-	# 	fake_videos = [x for x in os.listdir(folder_path) if x not in 
-	# 		["metadata.json", "multiple_faces", "bad_samples", "bounding_boxes"]]
-	# 	for video in fake_videos:
-	# 		fake_filename, _ = os.path.splitext(video)
-	# 		fake_json = os.path.join(bb_path, fake_filename) + ".json"
-
-	# 		# Only create the json if it hasn't been done yet
-	# 		if not os.path.isfile(fake_json):
-	# 			original_video = label_metadata[video]['original']
-	# 			original_filename, _ = os.path.splitext(original_video)
-	# 			original_json = os.path.join(real_video_path, 'bounding_boxes', original_filename) + ".json"
-	# 			copyfile(original_json, fake_json)
-
+	# Extract face boundingboxes for manipulated videos
 	for folder_path in fake_video_paths:
 		bb_path = os.path.join(folder_path, "bounding_boxes")
 		os.makedirs(bb_path, exist_ok=True)

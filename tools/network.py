@@ -221,7 +221,7 @@ class Network:
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
 		
-		# List of sorted folders in the kaggle directory
+		# Folders in the faceforensics directory
 		original_sequences = os.path.join(ff_dataset_path, 'original_sequences')
 		real_folder = os.path.join(original_sequences, 'c23', 'videos')
 		manipulated_sequences = os.path.join(ff_dataset_path, 'manipulated_sequences')
