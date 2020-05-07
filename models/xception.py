@@ -230,6 +230,11 @@ class MyXception(Xception):
         for param in self.fc2.parameters():
             param.requires_grad = True
 
+    def unfreeze_final_conv_layers(self):
+        for param in self.conv3.parameters():
+            param.requires_grad = True
+        for param in self.conv4.parameters():
+            param.requires_grad = True
 
 def xception(pretrained):
     """

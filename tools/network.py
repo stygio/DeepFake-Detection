@@ -2,12 +2,14 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-import numpy as np
 import os
 import json
 import cv2
 import random
+import numpy as np
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+from matplotlib import lines
 
 import tools.miscellaneous as misc
 from models.model_helpers import get_model
@@ -57,6 +59,37 @@ class Network:
 
 
 	"""
+	Plots the gradients flowing through different layers in the net during training.
+	Can be used for checking for possible gradient vanishing / exploding problems.
+	"""
+	def plot_grad_flow(self):
+
+		named_parameters = self.network.named_parameters()
+		ave_grads = []
+		max_grads= []
+		layers = []
+		for n, p in named_parameters:
+			if(p.requires_grad) and ("bias" not in n):
+				layers.append(n)
+				ave_grads.append(p.grad.abs().mean())
+				max_grads.append(p.grad.abs().max())
+		plt.bar(np.arange(len(max_grads)), max_grads, alpha=0.1, lw=1, color="c")
+		plt.bar(np.arange(len(max_grads)), ave_grads, alpha=0.1, lw=1, color="b")
+		plt.hlines(0, 0, len(ave_grads)+1, lw=2, color="k" )
+		plt.xticks(range(0,len(ave_grads), 1), layers, rotation="vertical")
+		plt.xlim(left=0, right=len(ave_grads))
+		plt.ylim(bottom = -0.001, top=0.02) # zoom in on the lower gradient regions
+		plt.xlabel("Layers")
+		plt.ylabel("average gradient")
+		plt.title("Gradient flow")
+		plt.grid(True)
+		plt.legend([lines.Line2D([0], [0], color="c", lw=4),
+					lines.Line2D([0], [0], color="b", lw=4),
+					lines.Line2D([0], [0], color="k", lw=4)], ['max-gradient', 'mean-gradient', 'zero-gradient'])
+		plt.show()
+
+
+	"""
 	Function for training chosen model on kaggle data.
 		kaggle_dataset_path	- path to Kaggle DFDC dataset on local machine
 	"""
@@ -70,8 +103,9 @@ class Network:
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
 		
 		# Unfreezing gradients
-		if only_fc_layer:
-			self.network.unfreeze_classifier()
+		self.network.unfreeze_classifier()
+		if not only_fc_layer:
+			self.network.unfreeze_final_conv_layers()
 
 		# Get label tensor
 		labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = self.device, requires_grad = False, dtype = torch.float)
@@ -110,7 +144,14 @@ class Network:
 			errors = []
 			
 			# Initializing optimizer with appropriate lr
-			optimizer = optim.SGD(self.network.parameters(), lr = lr * 0.8**(epoch-1), momentum = momentum)
+			classifier_lr = lr * 0.8**(epoch-1)
+			conv_layer_lr = 0.1 * classifier_lr
+			optimizer = optim.SGD([
+                {'params': self.network.conv3.parameters()},
+                {'params': self.network.conv4.parameters()},
+                {'params': self.network.fc1.parameters(), 'lr': classifier_lr},
+                {'params': self.network.fc2.parameters(), 'lr': classifier_lr}
+            ], lr = conv_layer_lr, momentum = momentum)
 
 			# Shuffle training_samples and initialize progress bar
 			random.shuffle(training_samples)
@@ -146,6 +187,7 @@ class Network:
 					# Compute loss and do backpropagation
 					err = self.criterion(output, labels)
 					err.backward()
+					# self.plot_grad_flow()
 					# Optimizer step applying gradients from results
 					optimizer.step()
 
@@ -337,6 +379,7 @@ class Network:
 					# Compute loss and do backpropagation
 					err = self.criterion(output, labels)
 					err.backward()
+					# self.plot_grad_flow()
 					# Optimizer step applying gradients from results
 					optimizer.step()
 
