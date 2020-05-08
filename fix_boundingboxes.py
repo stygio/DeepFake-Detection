@@ -70,15 +70,23 @@ def fix_bb_file(video_path, multiple_face_threshold = 0.1):
 	json.dump(metadata_dict, open(bb_path, "w+"))
 
 
-def fix_ff(mobilenet_gpu_allocation = 0.75):
+def fix_boundingboxes(dataset, mobilenet_gpu_allocation = 0.75):
+	# Initialize face recognition mobilenet
 	preprocessing.initialize_mobilenet(mobilenet_gpu_allocation)
-	# Folders in the faceforensics directory
-	original_sequences = os.path.join(face_forensics_path, 'original_sequences')
-	real_folder = os.path.join(original_sequences, 'c23', 'videos')
-	manipulated_sequences = os.path.join(face_forensics_path, 'manipulated_sequences')
-	fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences)]
-	fake_folders = [os.path.join(x, 'c23', 'videos') for x in fake_folders]
-	folder_paths = [real_folder] + fake_folders
+
+	# Retrieve folder_paths based on dataset
+	if dataset == 'faceforensics':
+		 # Folders in the faceforensics directory
+		original_sequences = os.path.join(face_forensics_path, 'original_sequences')
+		real_folder = os.path.join(original_sequences, 'c23', 'videos')
+		manipulated_sequences = os.path.join(face_forensics_path, 'manipulated_sequences')
+		fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences)]
+		fake_folders = [os.path.join(x, 'c23', 'videos') for x in fake_folders]
+		folder_paths = [real_folder] + fake_folders
+	elif dataset == 'kaggle':
+		folder_paths = [os.path.join(kaggle_path, x) for x in os.listdir(kaggle_path)]
+	else:
+		raise Exception('Invalid dataset choice: ' + dataset)
 
 	for folder_path in folder_paths:
 		videos = os.listdir(folder_path)
@@ -89,20 +97,4 @@ def fix_ff(mobilenet_gpu_allocation = 0.75):
 			fix_bb_file(video_path)
 
 
-def fix_kaggle(mobilenet_gpu_allocation = 0.75):
-	preprocessing.initialize_mobilenet(mobilenet_gpu_allocation)
-	# Folders in the kaggle directory
-	folder_paths = [os.path.join(kaggle_path, x) for x in os.listdir(kaggle_path)]
-	folder_paths = sorted(folder_paths, key = lambda d: int(d.split('_')[-1]))
-
-	for folder_path in folder_paths:
-		videos = os.listdir(folder_path)
-		videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces"]]
-
-		for video in tqdm(videos, desc = folder_path):
-			video_path = os.path.join(folder_path, video)
-			fix_bb_file(video_path)
-
-
-# fix_ff()
-fix_kaggle()
+fix_boundingboxes('faceforensics')

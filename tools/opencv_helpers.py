@@ -143,3 +143,33 @@ def specific_frames(video_handle, frame_numbers, is_color = True):
 		
 	return np.array(frames)
 
+
+"""
+Extracts faces from the requested video
+	video_path 		- path to video to extract faces from
+	bb_path    	  	- path to bounding boxes
+	target_folder 	- where to dump the images
+"""
+def extract_faces_from_video(video_path, bb_path, target_folder):
+	# Open the video & determine its length
+	video_handle = cv2.VideoCapture(video_path)
+	assert video_handle.isOpened(), "Unable to open " + video_name
+	video_length = video_handle.get(7)
+
+	# Get boundingbox information
+	boxes = json.load(open(bb_path))
+	# Create an empty file named multiple_faces in the video is tagged as such
+	if boxes['multiple_faces']:
+		open(os.path.join(target_folder, 'multiple_faces'), 'w+')
+	
+	# Main face extraction loop
+	for frame_nr in range(int(video_length)):
+		frame = getFrame(video_handle)
+
+		for face_nr, box in boxes[str(frame_nr)].items():
+			face_folder = os.path.join(target_folder, face_nr)
+			os.makedirs(face_folder, exist_ok = True)
+			box = (box['top'], box['bottom'], box['left'], box['right'])
+			face = preprocessing.crop_image(frame, box)
+			image_filename = os.path.join(face_folder, "{0}.png".format(frame_nr))
+			cv2.imwrite(image_filename, face)
