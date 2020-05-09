@@ -96,3 +96,19 @@ def add_to_log(log_file, log_string):
 	f = open(log_file, "a")
 	f.write(log_string)
 	f.close()
+
+
+"""
+Get the absolute path to the boundingbox file for a video
+	video_path - path to the video
+"""
+def get_boundingbox_path(video_path):
+	return os.path.join(os.path.dirname(video_path), "bounding_boxes", os.path.splitext(os.path.basename(video_path))[0]) + ".json"
+
+
+"""
+Get the absolute path to the directory containing extracted faces from a video
+	video_path - path to the video
+"""
+def get_images_path(video_path):
+	return os.path.join(os.path.dirname(video_path), "images", os.path.splitext(os.path.basename(video_path))[0])

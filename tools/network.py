@@ -127,7 +127,7 @@ class Network:
 		training_samples = []
 		for folder_path in fake_folders:
 			videos = os.listdir(folder_path)
-			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces"]]
+			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
 			metadata = os.path.join(folder_path, "metadata.json")
 			metadata = json.load(open(metadata))
 			# Added tuples of fake and corresponding real videos to the training_samples
@@ -158,27 +158,39 @@ class Network:
 			progress_bar = tqdm(training_samples, desc = "epoch {}".format(epoch))
 			
 			# Grab samples and run iterations
-			for fake_video_path, real_video_path in progress_bar:	
-				# Retrieving dicts of bounding boxes for faces
-				real_bb_path = os.path.join(os.path.dirname(real_video_path), "bounding_boxes")
-				real_bb  = os.path.join(real_bb_path, os.path.splitext(os.path.basename(real_video_path))[0]) + ".json"
-				real_bb = json.load(open(real_bb))
-				fake_bb_path = os.path.join(os.path.dirname(fake_video_path), "bounding_boxes")
-				fake_bb  = os.path.join(fake_bb_path, os.path.splitext(os.path.basename(fake_video_path))[0]) + ".json"
-				fake_bb = json.load(open(fake_bb))
-				# Check if the video contains frames with multiple faces
-				multiple_faces = real_bb['multiple_faces'] or fake_bb['multiple_faces']
+			for fake_video_path, real_video_path in progress_bar:
+				# Keep track of whether one or both of the videos contains multiple faces
+				multiple_faces = False
+
+				# Collecting necessary data for fake and real samples. For some of them the face images may already be extracted to speed up preprocessing.
+				fake_faces_path = misc.get_images_path(fake_video_path)
+				if os.path.isdir(fake_faces_path):
+					fake_data = (fake_video_path, os.path.join(fake_faces_path, '0'), 'images')
+					multiple_faces = multiple_faces or os.path.isfile(os.path.join(fake_faces_path, 'multiple_faces'))
+				else:
+					fake_bb_path = misc.get_boundingbox_path(fake_video_path)
+					fake_boxes = json.load(open(fake_bb_path))
+					fake_data = (fake_video_path, fake_boxes, 'boxes')
+					multiple_faces = multiple_faces or fake_boxes['multiple_faces']
+
+				real_faces_path = misc.get_images_path(real_video_path)
+				if os.path.isdir(real_faces_path):
+					real_data = (real_video_path, os.path.join(real_faces_path, '0'), 'images')
+					multiple_faces = multiple_faces or os.path.isfile(os.path.join(real_faces_path, 'multiple_faces'))
+				else:
+					real_bb_path = misc.get_boundingbox_path(real_video_path)
+					real_boxes = json.load(open(real_bb_path))
+					real_data = (real_video_path, real_boxes, 'boxes')
+					multiple_faces = multiple_faces or real_boxes['multiple_faces']
 
 				# Only run training for fake videos, with an existing original and a single face
 				if os.path.exists(real_video_path) and not multiple_faces:
 					# Get batch
 					try:
-						batch = BG.training_batch(fake_video_path, real_video_path, fake_boxes = fake_bb, real_boxes = real_bb, epoch = epoch)
+						batch = BG.training_batch(fake_data = fake_data, real_data = real_data, epoch = epoch)
 					except:
 						print('Fake video: {}, Real video: {}'.format(fake_video_path, real_video_path))
 						raise
-					# print(">> Epoch [{}/{}] Processing: {} and {}".format(
-					# 			epoch, epochs, fake_video_path, real_video_path))
 
 					self.network.zero_grad()
 					output = self.network(batch.detach())

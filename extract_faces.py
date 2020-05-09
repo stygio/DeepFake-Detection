@@ -32,10 +32,10 @@ def extract_faces(dataset):
 		videos = os.listdir(folder_path)
 		videos = [x for x in videos if x not in ['metadata.json', 'bounding_boxes', 'bad_samples', 'multiple_faces', 'images']]
 
-		# # Only retrieve faces from real videos
-		# if dataset == 'kaggle':
-		# 	metadata = json.load(open(os.path.join(folder_path, 'metadata.json')))
-		# 	videos = [x for x in videos if metadata[x]['label'] == 'REAL']
+		# Only retrieve faces from real videos
+		if dataset == 'kaggle':
+			metadata = json.load(open(os.path.join(folder_path, 'metadata.json')))
+			videos = [x for x in videos if metadata[x]['label'] == 'REAL']
 
 		# Main extraction loop for each video
 		for video in tqdm(videos, desc = folder_path):
