@@ -15,13 +15,6 @@ import tools.miscellaneous as misc
 from models.model_helpers import get_model
 from tools.batch import BatchGenerator
 
-kaggle_validation_folders = [ "dfdc_train_part_45",
-							  "dfdc_train_part_46",]
-
-kaggle_test_folders = [	"dfdc_train_part_47",
-						"dfdc_train_part_48",
-						"dfdc_train_part_49"]
-
 
 class Network:
 
@@ -90,8 +83,8 @@ class Network:
 
 
 	"""
-	Function for training chosen model on kaggle data.
-		kaggle_dataset_path	- path to Kaggle DFDC dataset on local machine
+	Function for training chosen model on faceforensics data.
+		ff_dataset_path	- path to FaceForensics++ dataset on local machine
 	"""
 	def train_faceforensics(self, ff_dataset_path, epochs = 1, batch_size = 24, 
 			lr = 0.0001, momentum = 0.9, only_fc_layer = False):
@@ -233,47 +226,74 @@ class Network:
 			self.save_model("ff_" + str(epoch), only_fc_layer)
 
 
-	def evaluate_faceforensics(self, ff_dataset_path, mode, batch_size = 24):
+
+	"""
+	Function for evaluation of the model on the chosen dataset.
+		dataset 	 - one of {kaggle, faceforensics}
+		dataset_path - absolute path to the dataset
+		mode 		 - one of {val, test}
+		batch_size	 - number of frames to be grabbed from each video
+	"""
+	def evaluate(self, dataset, dataset_path, mode, batch_size = 24):
 		
 		self.network.eval()
 
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
 		
-		# Folders in the faceforensics directory
-		original_sequences = os.path.join(ff_dataset_path, 'original_sequences')
-		real_folder = os.path.join(original_sequences, 'c23', 'videos')
-		manipulated_sequences = os.path.join(ff_dataset_path, 'manipulated_sequences')
-		fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences)]
-		fake_folders = [os.path.join(x, 'c23', 'videos') for x in fake_folders]
-
 		evaluation_samples = []
-		# Originals
-		videos = os.listdir(real_folder)
-		videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
-		metadata = os.path.join(real_folder, "metadata.json")
-		metadata = json.load(open(metadata))
-		for video in videos:
-			# Check if video is labeled as fake
-			if metadata[video]['split'] == mode:
-				real_video_path = os.path.join(real_folder, video)
-				evaluation_samples.append((real_video_path, 'REAL'))
-		# Fake videos
-		for folder_path in fake_folders:
-			videos = os.listdir(folder_path)
+
+		if dataset == 'faceforensics':
+			# Folders in the faceforensics directory
+			original_sequences = os.path.join(dataset_path, 'original_sequences')
+			real_folder = os.path.join(original_sequences, 'c23', 'videos')
+			manipulated_sequences = os.path.join(dataset_path, 'manipulated_sequences')
+			fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences)]
+			fake_folders = [os.path.join(x, 'c23', 'videos') for x in fake_folders]
+
+			# Originals
+			videos = os.listdir(real_folder)
 			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
-			metadata = os.path.join(folder_path, "metadata.json")
+			metadata = os.path.join(real_folder, "metadata.json")
 			metadata = json.load(open(metadata))
 			for video in videos:
-				# Check if video is labeled as fake
+				# Check if video belongs to the correct dataset split
 				if metadata[video]['split'] == mode:
-					fake_video_path = os.path.join(folder_path, video)
-					evaluation_samples.append((fake_video_path, 'FAKE'))
+					real_video_path = os.path.join(real_folder, video)
+					evaluation_samples.append((real_video_path, 'REAL'))
+			# Fake videos
+			for folder_path in fake_folders:
+				videos = os.listdir(folder_path)
+				videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
+				metadata = os.path.join(folder_path, "metadata.json")
+				metadata = json.load(open(metadata))
+				for video in videos:
+					# Check if video belongs to the correct dataset split
+					if metadata[video]['split'] == mode:
+						fake_video_path = os.path.join(folder_path, video)
+						evaluation_samples.append((fake_video_path, 'FAKE'))
+
+		elif dataset == 'kaggle':
+			# Folders in the kaggle directory
+			folder_paths = [os.path.join(dataset_path, x) for x in os.listdir(dataset_path)]
+
+			# Iterate through folders and construct list of samples
+			for folder_path in folder_paths:
+				videos = os.listdir(folder_path)
+				videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
+				metadata = os.path.join(folder_path, "metadata.json")
+				metadata = json.load(open(metadata))
+				for video in videos:
+					# Check if video belongs to the correct dataset split
+					if metadata[video]['split'] == mode:
+						video_path = os.path.join(folder_path, video)
+						evaluation_samples.append((video_path, metadata[video]['label']))
 
 		# Initialize lists or err/acc & progress bar
 		overall_err = []
 		overall_acc = []
-		progress_bar = tqdm(evaluation_samples, desc = 'FaceForensics ' + mode)
+		random.shuffle(evaluation_samples)
+		progress_bar = tqdm(evaluation_samples, desc = '{} ({} set)'.format(dataset, mode))
 		
 		# Run evaluation loop
 		for video_path, label in progress_bar:			
@@ -291,8 +311,6 @@ class Network:
 				batch = BG.evaluation_batch(video_path, boxes = bounding_boxes)
 				# Feed batch through network
 				output = self.network(batch.detach())
-				# if self.model_name == 'inception_v3':
-				# 	output = output[0]
 				# Get label tensor for this video
 				if label == 'REAL':
 					labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
@@ -316,6 +334,8 @@ class Network:
 				# Refresh tqdm postfix
 				postfix_dict = {'loss': round(np.mean(overall_err), 2), 'acc': round(np.mean(overall_acc), 2)}
 				progress_bar.set_postfix(postfix_dict, refresh = False)
+
+		return {'loss': np.mean(overall_err), 'acc': np.mean(overall_acc)}
 
 
 	"""
@@ -357,7 +377,7 @@ class Network:
 		training_samples = []
 		for folder_path in kaggle_folders:
 			videos = os.listdir(folder_path)
-			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples"]]
+			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
 			metadata = os.path.join(folder_path, "metadata.json")
 			metadata = json.load(open(metadata))
 			# Added tuples of fake and corresponding real videos to the training_samples
@@ -435,77 +455,69 @@ class Network:
 			self.save_model("kaggle_" + str(epoch), only_fc_layer)
 
 
-	def evaluate_kaggle(self, kaggle_dataset_path, mode, batch_size = 24):
+	# def evaluate_kaggle(self, kaggle_dataset_path, mode, batch_size = 24):
 		
-		self.network.eval()
+	# 	self.network.eval()
 
-		# Creating batch generator
-		BG = BatchGenerator(self.model_name, self.device, batch_size)
+	# 	# Creating batch generator
+	# 	BG = BatchGenerator(self.model_name, self.device, batch_size)
 		
-		# List of absolute paths to evaluation folders
-		if mode == 'val':
-			folders = kaggle_validation_folders
-		elif mode == 'test':
-			folders = kaggle_test_folders
-		else:
-			raise Exception("Invalid mode for <evaluate_kaggle>.")
-		folder_paths = [os.path.join(kaggle_dataset_path, x) for x in folders]
+	# 	# Construct list of evaluation samples in the form (absolute video path, label)
+	# 	folder_paths = [os.path.join(kaggle_dataset_path, x) for x in os.listdir(kaggle_dataset_path)]
+	# 	evaluation_samples = []
+	# 	for folder_path in folder_paths:
+	# 		videos = os.listdir(folder_path)
+	# 		videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples"]]
+	# 		metadata = os.path.join(folder_path, "metadata.json")
+	# 		metadata = json.load(open(metadata))
+	# 		for video in videos:
+	# 			video_path = os.path.join(folder_path, video)
+	# 			evaluation_samples.append((video_path, metadata[video]['label']))
 
-		# Construct list of evaluation samples in the form (absolute video path, label)
-		evaluation_samples = []
-		for folder_path in folder_paths:
-			videos = os.listdir(folder_path)
-			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples"]]
-			metadata = os.path.join(folder_path, "metadata.json")
-			metadata = json.load(open(metadata))
-			for video in videos:
-				video_path = os.path.join(folder_path, video)
-				evaluation_samples.append((video_path, metadata[video]['label']))
-
-		# Initialize lists or err/acc & progress bar
-		overall_err = []
-		overall_acc = []
-		progress_bar = tqdm(evaluation_samples, desc = "Validation")
+	# 	# Initialize lists or err/acc & progress bar
+	# 	overall_err = []
+	# 	overall_acc = []
+	# 	progress_bar = tqdm(evaluation_samples, desc = "Validation")
 		
-		# Run evaluation loop
-		for video_path, label in progress_bar:			
-			# Retrieving dict of bounding boxes for faces
-			bb_path = os.path.join(os.path.dirname(video_path), "bounding_boxes")
-			bounding_boxes  = os.path.join(bb_path, os.path.splitext(os.path.basename(video_path))[0]) + ".json"
-			bounding_boxes = json.load(open(bounding_boxes))
-			# Check if the video contains frames with multiple faces
-			multiple_faces = bounding_boxes['multiple_faces']
+	# 	# Run evaluation loop
+	# 	for video_path, label in progress_bar:			
+	# 		# Retrieving dict of bounding boxes for faces
+	# 		bb_path = os.path.join(os.path.dirname(video_path), "bounding_boxes")
+	# 		bounding_boxes  = os.path.join(bb_path, os.path.splitext(os.path.basename(video_path))[0]) + ".json"
+	# 		bounding_boxes = json.load(open(bounding_boxes))
+	# 		# Check if the video contains frames with multiple faces
+	# 		multiple_faces = bounding_boxes['multiple_faces']
 
-			# Only run training for fake videos, with an existing original and a single face
-			if not multiple_faces:
+	# 		# Only run training for fake videos, with an existing original and a single face
+	# 		if not multiple_faces:
 
-				# Get batch
-				batch = BG.evaluation_batch(video_path, boxes = bounding_boxes)
-				# Feed batch through network
-				output = self.network(batch.detach())
-				# if self.model_name == 'inception_v3':
-				# 	output = output[0]
-				# Get label tensor for this video
-				if label == 'REAL':
-					labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
-				else:
-					labels = torch.tensor([0]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
-				labels = labels.view(-1,1)
-				# Compute loss
-				err = self.criterion(output, labels)
+	# 			# Get batch
+	# 			batch = BG.evaluation_batch(video_path, boxes = bounding_boxes)
+	# 			# Feed batch through network
+	# 			output = self.network(batch.detach())
+	# 			# if self.model_name == 'inception_v3':
+	# 			# 	output = output[0]
+	# 			# Get label tensor for this video
+	# 			if label == 'REAL':
+	# 				labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
+	# 			else:
+	# 				labels = torch.tensor([0]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
+	# 			labels = labels.view(-1,1)
+	# 			# Compute loss
+	# 			err = self.criterion(output, labels)
 
-				# Get loss
-				err = err.item()
-				# Calculating accuracy for mixed samples
-				o = output.cpu().detach().numpy()
-				o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
-				l = labels.cpu().detach().numpy()
-				acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
-				# Add accuracy, error to lists & increment iteration
-				overall_err.append(err)
-				overall_acc.append(acc)
+	# 			# Get loss
+	# 			err = err.item()
+	# 			# Calculating accuracy for mixed samples
+	# 			o = output.cpu().detach().numpy()
+	# 			o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
+	# 			l = labels.cpu().detach().numpy()
+	# 			acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
+	# 			# Add accuracy, error to lists & increment iteration
+	# 			overall_err.append(err)
+	# 			overall_acc.append(acc)
 
-				# Refresh tqdm postfix
-				postfix_dict = {'loss': round(np.mean(overall_err), 2), 'acc': round(np.mean(overall_acc), 2)}
-				progress_bar.set_postfix(postfix_dict, refresh = False)
+	# 			# Refresh tqdm postfix
+	# 			postfix_dict = {'loss': round(np.mean(overall_err), 2), 'acc': round(np.mean(overall_acc), 2)}
+	# 			progress_bar.set_postfix(postfix_dict, refresh = False)
 
