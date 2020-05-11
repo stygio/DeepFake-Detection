@@ -27,6 +27,32 @@ class Binary_Inception(Inception3):
                 # Use Xavier initialization
                 nn.init.xavier_normal_(m.weight, gain = 1)
     
+    def classifier_parameters(self):
+        return self.fc.parameters()
+
+    def higher_level_parameters(self):
+        hl_parameters = []
+        hl_parameters += list(self.Mixed_7c.parameters())
+        hl_parameters += list(self.Mixed_7b.parameters())
+        hl_parameters += list(self.Mixed_7a.parameters())
+        return hl_parameters
+
+    def lower_level_parameters(self):
+        ll_parameters = []
+        ll_parameters += list(self.Mixed_6e.parameters())
+        ll_parameters += list(self.Mixed_6d.parameters())
+        ll_parameters += list(self.Mixed_6c.parameters())
+        ll_parameters += list(self.Mixed_6b.parameters())
+        return ll_parameters
+    
     def unfreeze_classifier(self):
-        for param in self.fc.parameters():
+        for param in self.classifier_parameters():
+            param.requires_grad = True
+
+    def unfreeze_higher_level(self):
+        for param in self.higher_level_parameters():
+            param.requires_grad = True
+
+    def unfreeze_lower_level(self):
+        for param in self.lower_level_parameters():
             param.requires_grad = True

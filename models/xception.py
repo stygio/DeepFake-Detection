@@ -217,16 +217,34 @@ class Binary_Xception(Xception):
             # 3. load the new state dict
             self.load_state_dict(model_dict)
 
-    def unfreeze_final_conv_layers(self):
-        for param in self.conv3.parameters():
-            param.requires_grad = True
-        for param in self.bn3.parameters():
-            param.requires_grad = True
-        for param in self.conv4.parameters():
-            param.requires_grad = True
-        for param in self.bn4.parameters():
-            param.requires_grad = True
+    def classifier_parameters(self):
+        return self.fc.parameters()
+
+    def higher_level_parameters(self):
+        hl_parameters = []
+        hl_parameters += list(self.bn4.parameters())
+        hl_parameters += list(self.conv4.parameters())
+        hl_parameters += list(self.bn3.parameters())
+        hl_parameters += list(self.conv3.parameters())
+        return hl_parameters
+
+    def lower_level_parameters(self):
+        ll_parameters = []
+        ll_parameters += list(self.block12.parameters())
+        ll_parameters += list(self.block11.parameters())
+        ll_parameters += list(self.block10.parameters())
+        ll_parameters += list(self.block9.parameters())
+        return ll_parameters
     
     def unfreeze_classifier(self):
-        for param in self.fc.parameters():
+        for param in self.classifier_parameters():
             param.requires_grad = True
+
+    def unfreeze_higher_level(self):
+        for param in self.higher_level_parameters():
+            param.requires_grad = True
+
+    def unfreeze_lower_level(self):
+        for param in self.lower_level_parameters():
+            param.requires_grad = True
+

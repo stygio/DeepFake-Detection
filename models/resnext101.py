@@ -24,6 +24,27 @@ class Binary_ResNeXt101(ResNet):
             # 3. load the new state dict
             self.load_state_dict(model_dict)
     
+    def classifier_parameters(self):
+        return self.fc.parameters()
+
+    def higher_level_parameters(self):
+        hl_parameters = []
+        hl_parameters += list(self.layer4.parameters())
+        return hl_parameters
+
+    def lower_level_parameters(self):
+        ll_parameters = []
+        ll_parameters += list(self.layer3.parameters())
+        return ll_parameters
+    
     def unfreeze_classifier(self):
-        for param in self.fc.parameters():
+        for param in self.classifier_parameters():
+            param.requires_grad = True
+
+    def unfreeze_higher_level(self):
+        for param in self.higher_level_parameters():
+            param.requires_grad = True
+
+    def unfreeze_lower_level(self):
+        for param in self.lower_level_parameters():
             param.requires_grad = True
