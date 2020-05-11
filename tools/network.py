@@ -107,11 +107,16 @@ class Network:
 		labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = self.device, requires_grad = False, dtype = torch.float)
 		labels = labels.view(-1,1)
 		
-		# Create log file
+		# Create log file w/ information from every iteration
 		filename = self.model_name + "_ff_"
-		filename += finetuning_level
+		filename += finetuning_level + "_iterations"
 		log_header = "Epoch,Folder,FakeVideo,RealVideo,Loss,Accuracy,\n"
-		log_file = misc.create_log(filename, header_string = log_header)
+		iteration_log = misc.create_log(filename, header_string = log_header)
+		# Create log file w/ train/val information for epoch
+		filename = self.model_name + "_ff_"
+		filename += finetuning_level + "_epochs"
+		log_header = "epoch,train_loss,train_acc,val_loss,val_acc\n"
+		epoch_log = misc.create_log(filename, header_string = log_header)
 		
 		# List of sorted folders in the kaggle directory
 		original_sequences = os.path.join(ff_dataset_path, 'original_sequences')
@@ -133,8 +138,6 @@ class Network:
 					fake_video_path = os.path.join(folder_path, video)
 					real_video_path = os.path.join(real_folder, metadata[video]['original'])
 					training_samples.append((fake_video_path, real_video_path))
-
-					# break
 		
 		# Run training loop
 		for epoch in range(1, epochs+1):
@@ -221,7 +224,7 @@ class Network:
 								epoch, os.path.split(os.path.dirname(real_video_path))[1], 
 								os.path.basename(fake_video_path), os.path.basename(real_video_path), 
 								err, acc)
-					misc.add_to_log(log_file = log_file, log_string = log_string)
+					misc.add_to_log(log_file = iteration_log, log_string = log_string)
 
 			# Save the model weights after each folder
 			self.save_model("ff_" + str(epoch) + "_", finetuning_level)
@@ -231,6 +234,10 @@ class Network:
 			val_loss = val_dict['loss']
 			val_acc = val_dict['acc']
 
+			# Add to epoch log
+			log_string = "{},{:.2f},{:.2f},{:.2f},{:.2f},\n".format(
+						epoch, np.mean(errors), np.mean(accuracies), val_loss, val_acc)
+			misc.add_to_log(log_file = epoch_log, log_string = log_string)
 
 
 	"""
