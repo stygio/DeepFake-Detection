@@ -34,16 +34,15 @@ class Network:
 
 	"""
 	Save the model weights
-		dataset_name  - dataset used for training (kaggle, face_forsensics)
-		batch_type	  - batch type used for training (single, dual)
-		only_fc_layer - training type ie. full model/only fc layer (True, False)
+		dataset_name  	 - dataset used for training (kaggle, face_forsensics)
+		finetuning_level - training type/level of finetuning {classifier, higher, lower}
 	"""
-	def save_model(self, dataset_name, only_fc_layer):
+	def save_model(self, dataset_name, finetuning_level):
 		
 		model_dir = "models/saved_models/"
 		# Construct filename
 		filename = self.model_name + "_" + dataset_name
-		filename += "_fc" if only_fc_layer else "_full"
+		filename += finetuning_level
 		filename += misc.timestamp() + ".pt"
 		filename = os.path.join(model_dir, filename)
 		# Save network
@@ -87,7 +86,7 @@ class Network:
 		ff_dataset_path	- path to FaceForensics++ dataset on local machine
 	"""
 	def train_faceforensics(self, ff_dataset_path, epochs = 1, batch_size = 24, 
-			lr = 0.0001, momentum = 0.9, only_fc_layer = False):
+			lr = 0.0001, momentum = 0.9, finetuning_level = 'classifier'):
 		
 		self.network.train()
 
@@ -98,17 +97,19 @@ class Network:
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
 		
 		# Unfreezing gradients
+		if finetuning_level == 'lower':
+			self.network.unfreeze_lower_level()
+		if finetuning_level == 'lower' or 'higher':
+			self.network.unfreeze_higher_level()
 		self.network.unfreeze_classifier()
-		if not only_fc_layer:
-			self.network.unfreeze_final_conv_layers()
 
 		# Get label tensor
 		labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = self.device, requires_grad = False, dtype = torch.float)
 		labels = labels.view(-1,1)
 		
 		# Create log file
-		filename = self.model_name + "_ff"
-		filename += "_fc" if only_fc_layer else "_full"
+		filename = self.model_name + "_ff_"
+		filename += finetuning_level
 		log_header = "Epoch,Folder,FakeVideo,RealVideo,Loss,Accuracy,\n"
 		log_file = misc.create_log(filename, header_string = log_header)
 		
@@ -132,6 +133,8 @@ class Network:
 					fake_video_path = os.path.join(folder_path, video)
 					real_video_path = os.path.join(real_folder, metadata[video]['original'])
 					training_samples.append((fake_video_path, real_video_path))
+
+					# break
 		
 		# Run training loop
 		for epoch in range(1, epochs+1):
@@ -140,16 +143,14 @@ class Network:
 			
 			# Initializing optimizer with appropriate lr
 			classifier_lr = lr * 0.8**(epoch-1)
-			conv_layer_lr = 0.1 * classifier_lr
-			# optimizer = optim.SGD([
-			# 	{'params': self.network.bn3.parameters()},
-			# 	{'params': self.network.conv3.parameters()},
-			# 	{'params': self.network.bn4.parameters()},
-			# 	{'params': self.network.conv4.parameters()},
-			# 	{'params': self.network.fc1.parameters(), 'lr': classifier_lr},
-			# 	{'params': self.network.fc2.parameters(), 'lr': classifier_lr}
-			# ], lr = conv_layer_lr, momentum = momentum)
-			optimizer = optim.SGD(self.network.parameters(), lr = classifier_lr, momentum = momentum)
+			higher_level_lr = 0.1 * classifier_lr
+			lower_level_lr = 0.01 * classifier_lr
+			optimizer = optim.SGD([
+				{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
+				{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
+				{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}
+			], momentum = momentum)
+			# optimizer = optim.SGD(self.network.parameters(), lr = classifier_lr, momentum = momentum)
 
 			# Shuffle training_samples and initialize progress bar
 			random.shuffle(training_samples)
@@ -223,7 +224,12 @@ class Network:
 					misc.add_to_log(log_file = log_file, log_string = log_string)
 
 			# Save the model weights after each folder
-			self.save_model("ff_" + str(epoch), only_fc_layer)
+			self.save_model("ff_" + str(epoch) + "_", finetuning_level)
+
+			# Run validation
+			val_dict = self.evaluate('faceforensics', ff_dataset_path, 'val')
+			val_loss = val_dict['loss']
+			val_acc = val_dict['acc']
 
 
 
