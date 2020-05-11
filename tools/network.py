@@ -25,14 +25,14 @@ kaggle_test_folders = [	"dfdc_train_part_47",
 
 class Network:
 
-	def __init__(self, model_name, model_weights_path = None, training = False):
+	def __init__(self, model_name, model_weights_path = None):
 		
 		# Model name
 		self.model_name = model_name
 		# Choose torch device
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# Setup chosen CNN model
-		self.network = get_model(model_name, training, model_weights_path).to(self.device)
+		self.network = get_model(model_name, model_weights_path).to(self.device)
 		# Loss function and optimizer
 		self.criterion = nn.BCEWithLogitsLoss()
 
@@ -96,6 +96,8 @@ class Network:
 	def train_faceforensics(self, ff_dataset_path, epochs = 1, batch_size = 24, 
 			lr = 0.0001, momentum = 0.9, only_fc_layer = False):
 		
+		self.network.train()
+
 		# Assert the batch_size is even
 		assert batch_size % 2 == 0, "Uneven batch_size equal to {}".format(batch_size)
 		
@@ -233,6 +235,8 @@ class Network:
 
 	def evaluate_faceforensics(self, ff_dataset_path, mode, batch_size = 24):
 		
+		self.network.eval()
+
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
 		
@@ -321,6 +325,8 @@ class Network:
 	def train_kaggle(self, kaggle_dataset_path, epochs = 1, batch_size = 24, 
 			lr = 0.0001, momentum = 0.9, only_fc_layer = False):
 		
+		self.network.train()
+
 		# Assert the batch_size is even
 		assert batch_size % 2 == 0, "Uneven batch_size equal to {}".format(batch_size)
 		
@@ -431,6 +437,8 @@ class Network:
 
 	def evaluate_kaggle(self, kaggle_dataset_path, mode, batch_size = 24):
 		
+		self.network.eval()
+
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
 		

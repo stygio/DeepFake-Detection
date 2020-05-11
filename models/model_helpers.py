@@ -13,7 +13,7 @@ Function for retrieving a chosen model
 	model_path - model path if a local version should be used
 	training   - activates the dropout layer
 """
-def get_model(model_name, training, model_path = None):
+def get_model(model_name, model_path = None):
 	network = None
 
 	if model_name == "xception":
@@ -21,7 +21,7 @@ def get_model(model_name, training, model_path = None):
 			network = xception(pretrained = True)
 		else:
 			network = xception(pretrained = False)
-			network.load_state_dict(load(model_path), strict = False)
+			network.load_state_dict(load(model_path))
 	elif model_name == "inception_v3":
 		if model_path == None:
 			network = inception_v3(pretrained = True)
@@ -46,11 +46,5 @@ def get_model(model_name, training, model_path = None):
 	# Disable gradients
 	for param in network.parameters():
 		param.requires_grad = False
-
-	# Set model mode (self.training True/False)
-	if training:
-		network = network.train()
-	else:
-		network = network.eval()
 
 	return network

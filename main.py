@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
 
 	if mode == 'train':
-		net = Network(model_name = model_name, model_weights_path = model_path, training = True)
+		net = Network(model_name = model_name, model_weights_path = model_path)
 		
 		# dataset_name 	= str(	input("Dataset name {kaggle, face_forensics}: "))
 		# if dataset_name not in ['kaggle', 'face_forensics']:

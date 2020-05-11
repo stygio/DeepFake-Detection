@@ -30,6 +30,8 @@ import torch.utils.model_zoo as model_zoo
 from torch.nn import init
 import torch
 
+from models.classifier import BinaryClassifier
+
 __all__ = ['xception']
 
 model_urls = {
@@ -191,38 +193,19 @@ class Xception(nn.Module):
         # Classifier
         x = F.adaptive_avg_pool2d(x, (1, 1))
         x = torch.flatten(x, 1)
-        # x = self.fc(x)
+        x = self.fc(x)
 
         return x
 
 
 class MyXception(Xception):
     """
-    My version of Xception with a modified classifier.
+    My version of Xception with a modified classifier and functions for unfreezing certain groups of layers.
     """
     def __init__(self):
         # Constructor
         super(MyXception, self).__init__()
-
-        self.fc1 = nn.Linear(2048, 512)
-        self.dropout = nn.Dropout(0.5)
-        self.fc2 = nn.Linear(512, 1)
-
-        # Initializing fc layers
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                # Use Xavier initialization
-                nn.init.xavier_normal_(m.weight, gain = 1)
-
-    def forward(self, x):
-        # Use forward pass implementation from base Xception class
-        x = super(MyXception, self).forward(x)
-
-        x = self.fc1(x)
-        x = F.dropout(x, training = self.training)
-        x = self.fc2(x)
-
-        return x
+        self.fc = BinaryClassifier(in_channels = self.fc.in_features)
 
     def unfreeze_final_conv_layers(self):
         for param in self.conv3.parameters():
@@ -235,13 +218,11 @@ class MyXception(Xception):
             param.requires_grad = True
     
     def unfreeze_classifier(self):
-        for param in self.fc1.parameters():
-            param.requires_grad = True
-        for param in self.fc2.parameters():
+        for param in self.fc.parameters():
             param.requires_grad = True
 
 
-def xception(pretrained):
+def xception(pretrained = False):
     """
     Construct Xception.
     """
