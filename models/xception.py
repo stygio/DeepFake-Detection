@@ -35,7 +35,6 @@ from models.classifier import BinaryClassifier
 __all__ = ['xception']
 
 model_urls = {
-    # 'xception':'https://www.dropbox.com/s/1hplpzet9d7dv29/xception-c0a72b38.pth.tar?dl=1'
     'xception':'http://data.lip6.fr/cadene/pretrainedmodels/xception-43020ad28.pth'
 }
 
@@ -198,14 +197,25 @@ class Xception(nn.Module):
         return x
 
 
-class MyXception(Xception):
+class Binary_Xception(Xception):
     """
     My version of Xception with a modified classifier and functions for unfreezing certain groups of layers.
     """
-    def __init__(self):
+    def __init__(self, pretrained = False):
         # Constructor
-        super(MyXception, self).__init__()
+        super(Binary_Xception, self).__init__()
         self.fc = BinaryClassifier(in_channels = self.fc.in_features)
+
+        # Load weights
+        if pretrained:
+            model_dict = self.state_dict()
+            pretrained_dict = model_zoo.load_url(model_urls['xception'], progress = False)
+            # 1. filter out unnecessary keys
+            pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+            # 2. overwrite entries in the existing state dict
+            model_dict.update(pretrained_dict) 
+            # 3. load the new state dict
+            self.load_state_dict(model_dict)
 
     def unfreeze_final_conv_layers(self):
         for param in self.conv3.parameters():
@@ -220,23 +230,3 @@ class MyXception(Xception):
     def unfreeze_classifier(self):
         for param in self.fc.parameters():
             param.requires_grad = True
-
-
-def xception(pretrained = False):
-    """
-    Construct Xception.
-    """
-    model = MyXception()
-
-    # Load weights
-    if pretrained:
-        model_dict = model.state_dict()
-        pretrained_dict = model_zoo.load_url(model_urls['xception'])
-        # 1. filter out unnecessary keys
-        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-        # 2. overwrite entries in the existing state dict
-        model_dict.update(pretrained_dict) 
-        # 3. load the new state dict
-        model.load_state_dict(model_dict)
-
-    return model

@@ -199,8 +199,8 @@ class Network:
 
 					self.network.zero_grad()
 					output = self.network(batch.detach())
-					if self.model_name == 'inception_v3':
-						output = output[0]
+					# if self.model_name == 'inception_v3':
+					# 	output = output[0]
 					# Compute loss and do backpropagation
 					err = self.criterion(output, labels)
 					err.backward()
@@ -291,8 +291,8 @@ class Network:
 				batch = BG.evaluation_batch(video_path, boxes = bounding_boxes)
 				# Feed batch through network
 				output = self.network(batch.detach())
-				if self.model_name == 'inception_v3':
-					output = output[0]
+				# if self.model_name == 'inception_v3':
+				# 	output = output[0]
 				# Get label tensor for this video
 				if label == 'REAL':
 					labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
@@ -395,8 +395,8 @@ class Network:
 
 					self.network.zero_grad()
 					output = self.network(batch.detach())
-					if self.model_name == 'inception_v3':
-						output = output[0]
+					# if self.model_name == 'inception_v3':
+					# 	output = output[0]
 					# Compute loss and do backpropagation
 					err = self.criterion(output, labels)
 					err.backward()
@@ -483,8 +483,8 @@ class Network:
 				batch = BG.evaluation_batch(video_path, boxes = bounding_boxes)
 				# Feed batch through network
 				output = self.network(batch.detach())
-				if self.model_name == 'inception_v3':
-					output = output[0]
+				# if self.model_name == 'inception_v3':
+				# 	output = output[0]
 				# Get label tensor for this video
 				if label == 'REAL':
 					labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
