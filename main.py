@@ -71,7 +71,7 @@ if __name__ == '__main__':
 		elif dataset == 'faceforensics':
 			try:
 				# net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
-				net.train_faceforensics(ff_path, only_fc_layer = False, epochs = 5, batch_size = 32, lr = 0.00005)
+				net.train_faceforensics(ff_path, only_fc_layer = False, epochs = 5, batch_size = 32, lr = 0.0001)
 			except KeyboardInterrupt:
 				print("Execution ended by KeyboardInterrupt.")
 				net.save_model('ff_interrupted', True)

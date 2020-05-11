@@ -32,7 +32,7 @@ def delete_folders():
 def short_videos(dataset_path):
 	# Move videos which are too short to bad samples
 	import cv2
-	min_length = 32
+	min_length = 60
 	# Paths to fake videos (multiple folders of fakes)
 	fake_video_paths = os.path.join(dataset_path, 'manipulated_sequences')
 	fake_video_paths = [os.path.join(fake_video_paths, x) for x in os.listdir(fake_video_paths)]
@@ -42,7 +42,7 @@ def short_videos(dataset_path):
 		bs_path = os.path.join(folder_path, "bad_samples")
 		os.makedirs(bs_path, exist_ok=True)
 		fake_videos = [x for x in os.listdir(folder_path) if x not in 
-			["metadata.json", "multiple_faces", "bad_samples", "bounding_boxes"]]
+			["metadata.json", "multiple_faces", "bad_samples", "bounding_boxes", "images"]]
 
 		for video in tqdm(fake_videos, desc = folder_path):
 			video_path = os.path.join(folder_path, video)

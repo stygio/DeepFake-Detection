@@ -224,17 +224,22 @@ class MyXception(Xception):
 
         return x
 
+    def unfreeze_final_conv_layers(self):
+        for param in self.conv3.parameters():
+            param.requires_grad = True
+        for param in self.bn3.parameters():
+            param.requires_grad = True
+        for param in self.conv4.parameters():
+            param.requires_grad = True
+        for param in self.bn4.parameters():
+            param.requires_grad = True
+    
     def unfreeze_classifier(self):
         for param in self.fc1.parameters():
             param.requires_grad = True
         for param in self.fc2.parameters():
             param.requires_grad = True
 
-    def unfreeze_final_conv_layers(self):
-        for param in self.conv3.parameters():
-            param.requires_grad = True
-        for param in self.conv4.parameters():
-            param.requires_grad = True
 
 def xception(pretrained):
     """

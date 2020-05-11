@@ -146,12 +146,15 @@ class Network:
 			# Initializing optimizer with appropriate lr
 			classifier_lr = lr * 0.8**(epoch-1)
 			conv_layer_lr = 0.1 * classifier_lr
-			optimizer = optim.SGD([
-                {'params': self.network.conv3.parameters()},
-                {'params': self.network.conv4.parameters()},
-                {'params': self.network.fc1.parameters(), 'lr': classifier_lr},
-                {'params': self.network.fc2.parameters(), 'lr': classifier_lr}
-            ], lr = conv_layer_lr, momentum = momentum)
+			# optimizer = optim.SGD([
+			# 	{'params': self.network.bn3.parameters()},
+			# 	{'params': self.network.conv3.parameters()},
+			# 	{'params': self.network.bn4.parameters()},
+			# 	{'params': self.network.conv4.parameters()},
+			# 	{'params': self.network.fc1.parameters(), 'lr': classifier_lr},
+			# 	{'params': self.network.fc2.parameters(), 'lr': classifier_lr}
+			# ], lr = conv_layer_lr, momentum = momentum)
+			optimizer = optim.SGD(self.network.parameters(), lr = classifier_lr, momentum = momentum)
 
 			# Shuffle training_samples and initialize progress bar
 			random.shuffle(training_samples)
@@ -243,7 +246,7 @@ class Network:
 		evaluation_samples = []
 		# Originals
 		videos = os.listdir(real_folder)
-		videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces"]]
+		videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
 		metadata = os.path.join(real_folder, "metadata.json")
 		metadata = json.load(open(metadata))
 		for video in videos:
@@ -254,7 +257,7 @@ class Network:
 		# Fake videos
 		for folder_path in fake_folders:
 			videos = os.listdir(folder_path)
-			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces"]]
+			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
 			metadata = os.path.join(folder_path, "metadata.json")
 			metadata = json.load(open(metadata))
 			for video in videos:
