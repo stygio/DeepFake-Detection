@@ -214,7 +214,7 @@ class Network:
 				if os.path.exists(real_video_path) and not multiple_faces:
 					# Get batch
 					try:
-						batch = BG.training_batch(fake_data = fake_data, real_data = real_data, epoch = epoch)
+						batch = BG.training_batch(fake_data = fake_data, real_data = real_data, epoch = epoch, total_epochs = epochs)
 					except:
 						print('Fake video: {}, Real video: {}'.format(fake_video_path, real_video_path))
 						raise

@@ -281,7 +281,7 @@ class BatchGenerator:
 		fake_video_path	- path to the altered video
 		real_video_path	- path to the original video the fake is based on
 	"""
-	def training_batch(self, fake_data, real_data, epoch):
+	def training_batch(self, fake_data, real_data, epoch, total_epochs):
 		fake_video_path, fake_data, fake_data_type = fake_data
 		real_video_path, real_data, real_data_type = real_data
 
@@ -308,8 +308,10 @@ class BatchGenerator:
 		# Calculate which frames to grab from the video
 		shorter_video_path = fake_video_path if fake_video_length <= real_video_length else real_video_path
 		shorter_video_length = fake_video_length if fake_video_length <= real_video_length else real_video_length
-		n = int(shorter_video_length/int(self.batch_size/2))
+		# Calculating step of frames to skip in video (subtract total_epochs to ensure there are enough frames)
+		n = int((shorter_video_length - total_epochs)/int(self.batch_size/2))
 		assert n >= 1, "Video length smaller than half of batch_size in " + shorter_video_path
+		# List of frames [epoch:n:end] to be grabbed from the videos
 		frame_numbers = [epoch]
 		for _ in range(int(self.batch_size/2) - 1):
 			frame_numbers.append(frame_numbers[-1] + n)

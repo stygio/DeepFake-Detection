@@ -8,7 +8,7 @@ Repository for work on my Master's Thesis project. The goal is to examine state-
 
 * tools/ - module of tools/functions created for the purpose of the project
 
-* unit_tests/ - tests for various implemented functions, which can be run after navigating to the directory
+* unit_tests/ - tests for various implemented functions, which can be run after navigating to the directory (Currently broken)
 
 * outputs/ - various outputs such as logs, graphs, etc.
 
