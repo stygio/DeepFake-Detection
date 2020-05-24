@@ -42,7 +42,7 @@ if __name__ == '__main__':
 	dataset = args.dataset
 	if not (model_path == None or isfile(model_path)):
 		raise Exception("Invalid model path '{}'".format(model_path))
-
+	dataset_path = ff_path if dataset == 'faceforensics' else kaggle_path
 
 	if mode == 'train':
 		net = Network(model_name = model_name, model_weights_path = model_path)
@@ -56,40 +56,18 @@ if __name__ == '__main__':
 
 		# epochs 			= int(	input("Epochs: "))
 		# batch_size 		= int(	input("Batch size (even): "))
-		# only_fc_layer	= str(	input("Only FC layer {True, False}: "))
-		# if only_fc_layer not in ['True', 'False']:
-		# 	raise Exception("Invalid choice for only_fc_layer '{}'".format(only_fc_layer))
-		# only_fc_layer = True if only_fc_layer == 'True' else False
 
-		if dataset == 'kaggle':
-			try:
-				# net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
-				net.train_kaggle(kaggle_path, only_fc_layer = True, batch_size = 32, lr = 0.0001)
-			except KeyboardInterrupt:
-				print("Execution ended by KeyboardInterrupt.")
-				net.save_model('kaggle_interrupted', True)
-		elif dataset == 'faceforensics':
-			try:
-				# net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
-				net.train_faceforensics(ff_path, epochs = 20, batch_size = 24, lr = 0.0002, finetuning_level = 'lower')
-			except KeyboardInterrupt:
-				print("Execution ended by KeyboardInterrupt.")
-				net.save_model('ff_interrupted', 'lower')
-		else:
-			raise Exception("Invalid dataset choice: " + dataset)
+		training_level = 'lower'
+
+		try:
+			net.train(dataset, dataset_path, epochs = 10, batch_size = 24, lr = 0.0002, training_level = training_level)
+		except KeyboardInterrupt:
+			print("Execution ended by KeyboardInterrupt.")
+			net.save_model(dataset + '_interrupted', training_level)
 
 
 	elif mode == 'val' or mode == 'test':
-		# net = Network(model_name = model_name, model_weights_path = model_path)
-		net = Network(model_name = model_name)
-
-		if dataset == 'kaggle':
-			dataset_path = kaggle_path
-		elif dataset == 'faceforensics':
-			dataset_path = ff_path
-		else:
-			raise Exception("Invalid dataset choice: " + dataset)
-
+		net = Network(model_name = model_name, model_weights_path = model_path)
 		net.evaluate(dataset, dataset_path, mode, batch_size = 24)
 
 
