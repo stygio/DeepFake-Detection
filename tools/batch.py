@@ -129,45 +129,6 @@ class BatchGenerator:
 		return batch, labels
 
 
-	# """
-	# Function to retrieve a homogenous batch in tensor form (FaceForensics dataset)
-	# 	video_path_generator - generator object which returns paths to video samples
-	# """
-	# def get_ff_homogenous_batch(self, video_path_generator):
-	# 	# While there is no batch, try to create one
-	# 	batch, video_path = None, None
-	# 	while not torch.is_tensor(batch):
-	# 		try:
-	# 			video_path = next(video_path_generator)
-	# 			batch = preprocessing.create_homogenous_batch(video_path = video_path, 
-	# 				model_type = model_type, device = device, batch_size = self.batch_size)
-	# 		except AttributeError as Error:
-	# 			# No faces error
-	# 			print("DEBUG: {}".format(Error))
-	# 		except ValueError as Error:
-	# 			# Multiple faces error
-	# 			print("DEBUG: {}".format(Error))
-	# 			# Move the file to a special folder for videos with multiple faces
-	# 			misc.put_file_in_folder(file_path = video_path, folder = "multiple_faces")
-	# 		except (AssertionError, IndexError) as Error:
-	# 			# Video access or video length error
-	# 			print("DEBUG: {}".format(Error))
-	# 			# Move the file to a special folder for corrupt/short videos
-	# 			misc.put_file_in_folder(file_path = video_path, folder = "bad_samples")
-	# 	return batch, video_path
-
-
-	# """
-	# Function to retrieve a disparate batch in tensor form (FaceForensics dataset)
-	# 	real_video_generator - generator object which returns paths to real video samples
-	# 	fake_video_generator - generator object which returns paths to fake video samples
-	# """
-	# def get_ff_disparate_batch(real_video_generator, fake_video_generator, model_type, device, batch_size):
-	# 	batch, labels = preprocessing.create_disparate_batch(
-	# 		real_video_generator = real_video_generator, fake_video_generator = fake_video_generator, model_type = model_type, device = device, batch_size = self.batch_size)
-	# 	return batch, labels
-
-
 	"""
 	Function to retrieve a generator of batches in tensor form (Kaggle dataset)
 	The batches contain sequences of consecutive frames from a single video
