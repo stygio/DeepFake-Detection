@@ -14,11 +14,14 @@ class BatchGenerator:
 	
 	def __init__(self, model_type, device, batch_size):
 		self.training_transform = transform.data_augmentation
-		self.tensor_transform = transform.model_transforms[model_type]
+		self.model_transform = transform.model_transforms[model_type]
 		self.device = device
 		self.batch_size = batch_size
 		# Initializing mobilenet for face recognition
 		preprocessing.initialize_mobilenet(0.4)
+
+	def tensor_transform(self, data):
+		return self.model_transform(data) * (1./255)
 
 	# Create a batch of face images from a point in the video
 	def from_video_segment(self, video_path, start_frame = None):
@@ -357,7 +360,7 @@ class BatchGenerator:
 		if fake_data_type == 'images':
 			for frame_nr in frame_numbers:
 				fake_face = cv2.imread(os.path.join(fake_images_path, '{}.png'.format(frame_nr)))
-				fake_faces.append(self.tensor_transform(self.training_transform(transform.to_PIL(fake_face))) * (1./255))			
+				fake_faces.append(self.tensor_transform(self.training_transform(transform.to_PIL(fake_face))))			
 		else:
 			try:
 				# Check that the video was opened successfully
@@ -374,7 +377,7 @@ class BatchGenerator:
 					right 	= fake_boxes[str(frame_numbers[i])]['0']['right']
 					fake_face = preprocessing.crop_image(fake_frames[i], (top, bottom, left, right))
 					# preprocessing.show_test_img(fake_face)
-					fake_face = self.tensor_transform(self.training_transform(transform.to_PIL(fake_face))) * (1./255)
+					fake_face = self.tensor_transform(self.training_transform(transform.to_PIL(fake_face)))
 					# self.show_tensor(fake_face)
 					fake_faces.append(fake_face)
 			except CorruptVideoError:
@@ -386,7 +389,7 @@ class BatchGenerator:
 		if real_data_type == 'images':
 			for frame_nr in frame_numbers:
 				real_face = cv2.imread(os.path.join(real_images_path, '{}.png'.format(frame_nr)))
-				real_faces.append(self.tensor_transform(self.training_transform(transform.to_PIL(real_face))) * (1./255))
+				real_faces.append(self.tensor_transform(self.training_transform(transform.to_PIL(real_face))))
 		else:
 			try:
 				# Check that the video was opened successfully
@@ -403,7 +406,7 @@ class BatchGenerator:
 					left 	= real_boxes[str(frame_numbers[i])]['0']['left']
 					right 	= real_boxes[str(frame_numbers[i])]['0']['right']
 					real_face = preprocessing.crop_image(real_frames[i], (top, bottom, left, right))
-					real_faces.append(self.tensor_transform(self.training_transform(transform.to_PIL(real_face))) * (1./255))
+					real_faces.append(self.tensor_transform(self.training_transform(transform.to_PIL(real_face))))
 			except CorruptVideoError:
 				real_video_handle.release()
 				# Move the file to a folder for corrupt videos
@@ -451,7 +454,7 @@ class BatchGenerator:
 				left 	= boxes[str(frame_numbers[i])]['0']['left']
 				right 	= boxes[str(frame_numbers[i])]['0']['right']
 				face = preprocessing.crop_image(frames[i], (top, bottom, left, right))
-				faces.append(self.tensor_transform(Image.fromarray(face)) * (1./255))
+				faces.append(self.tensor_transform(Image.fromarray(face)))
 
 			batch = torch.stack(faces).to(self.device)
 			return batch
