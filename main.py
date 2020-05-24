@@ -71,10 +71,10 @@ if __name__ == '__main__':
 		elif dataset == 'faceforensics':
 			try:
 				# net.train_kaggle(dataset_path, epochs, batch_size, only_fc_layer = only_fc_layer, start_folder = start_folder)
-				net.train_faceforensics(ff_path, epochs = 5, batch_size = 32, lr = 0.001, finetuning_level = 'classifier')
+				net.train_faceforensics(ff_path, epochs = 20, batch_size = 24, lr = 0.0002, finetuning_level = 'lower')
 			except KeyboardInterrupt:
 				print("Execution ended by KeyboardInterrupt.")
-				net.save_model('ff_interrupted', True)
+				net.save_model('ff_interrupted', 'lower')
 		else:
 			raise Exception("Invalid dataset choice: " + dataset)
 

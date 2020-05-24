@@ -4,7 +4,7 @@ resize_script.py
 unit_tests/media_resources/*.mp4
 testing_script.py
 *.pt
-outputs/logs/*.csv
+outputs/*
 venv/
 test.py
 move_files_back.py

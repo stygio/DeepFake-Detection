@@ -95,13 +95,6 @@ class Network:
 		
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
-		
-		# Unfreezing gradients
-		if finetuning_level == 'lower':
-			self.network.unfreeze_lower_level()
-		if finetuning_level == 'lower' or 'higher':
-			self.network.unfreeze_higher_level()
-		self.network.unfreeze_classifier()
 
 		# Get label tensor
 		labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = self.device, requires_grad = False, dtype = torch.float)
@@ -143,11 +136,18 @@ class Network:
 		for epoch in range(1, epochs+1):
 			accuracies = []
 			errors = []
+
+			# Unfreezing gradients
+			if finetuning_level == 'lower':
+				self.network.unfreeze_lower_level()
+			if finetuning_level == 'lower' or 'higher':
+				self.network.unfreeze_higher_level()
+			self.network.unfreeze_classifier()
 			
 			# Initializing optimizer with appropriate lr
 			classifier_lr = lr * 0.8**(epoch-1)
-			higher_level_lr = 0.1 * classifier_lr
-			lower_level_lr = 0.01 * classifier_lr
+			higher_level_lr = 1. * classifier_lr
+			lower_level_lr = 1. * higher_level_lr
 			optimizer = optim.SGD([
 				{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
 				{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
@@ -226,6 +226,8 @@ class Network:
 								err, acc)
 					misc.add_to_log(log_file = iteration_log, log_string = log_string)
 
+			# Clean CUDA cache
+			torch.cuda.empty_cache()
 			# Save the model weights after each folder
 			self.save_model("ff_" + str(epoch) + "_", finetuning_level)
 
@@ -367,6 +369,10 @@ class Network:
 	def evaluate(self, dataset, dataset_path, mode, batch_size = 24):
 		
 		self.network.eval()
+		
+		# Disable gradients
+		for param in self.network.parameters():
+			param.requires_grad = False
 
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
@@ -465,5 +471,6 @@ class Network:
 				postfix_dict = {'loss': round(np.mean(overall_err), 2), 'acc': round(np.mean(overall_acc), 2)}
 				progress_bar.set_postfix(postfix_dict, refresh = False)
 
+		torch.cuda.empty_cache()
 		return {'loss': np.mean(overall_err), 'acc': np.mean(overall_acc)}
 
