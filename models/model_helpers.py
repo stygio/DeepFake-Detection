@@ -6,6 +6,15 @@ from models.resnet152 import Binary_ResNet152
 from models.resnext101 import Binary_ResNeXt101
 
 
+# Display network parameter counts in ratios of total parameters in the model
+def count_parameters(model):
+	total_parameters = sum(p.numel() for p in model.parameters())
+	classifier_parameters = sum(p.numel() for p in model.classifier_parameters())
+	higher_parameters = sum(p.numel() for p in model.higher_level_parameters())
+	lower_parameters = sum(p.numel() for p in model.lower_level_parameters())
+
+	print('Model parameter ratios: Classifier {:.2f}%, Higher {:.2f}%, Lower {:.2f}%'.format(
+		classifier_parameters/total_parameters*100, higher_parameters/total_parameters*100, lower_parameters/total_parameters*100))
 
 """
 Function for retrieving a chosen model
@@ -45,5 +54,7 @@ def get_model(model_name, model_path = None):
 	# Disable gradients
 	for param in network.parameters():
 		param.requires_grad = False
+
+	count_parameters(network)
 
 	return network

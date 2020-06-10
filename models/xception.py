@@ -226,14 +226,19 @@ class Binary_Xception(Xception):
         hl_parameters += list(self.conv4.parameters())
         hl_parameters += list(self.bn3.parameters())
         hl_parameters += list(self.conv3.parameters())
+        hl_parameters += list(self.block12.parameters())
         return hl_parameters
 
     def lower_level_parameters(self):
         ll_parameters = []
-        ll_parameters += list(self.block12.parameters())
         ll_parameters += list(self.block11.parameters())
         ll_parameters += list(self.block10.parameters())
         ll_parameters += list(self.block9.parameters())
+        ll_parameters += list(self.block8.parameters())
+        ll_parameters += list(self.block7.parameters())
+        ll_parameters += list(self.block6.parameters())
+        ll_parameters += list(self.block5.parameters())
+        ll_parameters += list(self.block4.parameters())
         return ll_parameters
     
     def unfreeze_classifier(self):

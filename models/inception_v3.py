@@ -32,17 +32,19 @@ class Binary_Inception(Inception3):
 
     def higher_level_parameters(self):
         hl_parameters = []
-        hl_parameters += list(self.Mixed_7c.parameters())
+        # hl_parameters += list(self.Mixed_7c.parameters())
         hl_parameters += list(self.Mixed_7b.parameters())
         hl_parameters += list(self.Mixed_7a.parameters())
         return hl_parameters
 
     def lower_level_parameters(self):
         ll_parameters = []
+        ll_parameters += list(self.Mixed_7c.parameters())
         ll_parameters += list(self.Mixed_6e.parameters())
         ll_parameters += list(self.Mixed_6d.parameters())
         ll_parameters += list(self.Mixed_6c.parameters())
         ll_parameters += list(self.Mixed_6b.parameters())
+        ll_parameters += list(self.Mixed_6a.parameters())        
         return ll_parameters
     
     def unfreeze_classifier(self):

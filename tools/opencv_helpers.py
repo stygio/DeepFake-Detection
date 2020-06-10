@@ -133,7 +133,7 @@ def specific_frames(video_handle, frame_numbers, is_color = True):
 		try:
 			frame = getFrame(video_handle)
 		except Exception:
-			if video_handle.get(1) + 1 <= video_length:
+			if video_handle.get(1) + 1 <= video_handle.get(7):
 				raise CorruptVideoError("getFrame raised Exception() despite handled video having more frames")
 			else:
 				raise

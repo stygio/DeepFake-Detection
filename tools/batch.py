@@ -1,5 +1,5 @@
 import cv2
-from PIL import Image
+from PIL import Image, ImageMath
 import torch
 import time
 import os
@@ -21,7 +21,9 @@ class BatchGenerator:
 		preprocessing.initialize_mobilenet(0.4)
 
 	def tensor_transform(self, data):
-		return self.model_transform(data) * (1./255)
+		data = self.model_transform(data) # * (1./255)
+		# print('Tensor -> max: {}, min: {}'.format(np.amax(data.cpu().detach().numpy()), np.amin(data.cpu().detach().numpy())))
+		return data
 
 	# Create a batch of face images from a point in the video
 	def from_video_segment(self, video_path, start_frame = None):
