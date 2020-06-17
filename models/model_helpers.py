@@ -6,8 +6,10 @@ from models.resnet152 import Binary_ResNet152
 from models.resnext101 import Binary_ResNeXt101
 from models.efficientnet import Binary_EfficientNet
 
-
-# Display network parameter counts in ratios of total parameters in the model
+"""
+Display network parameter counts in ratios of total parameters in the model
+	model - pytorch model to be checked
+"""
 def count_parameters(model):
 	total_parameters = sum(p.numel() for p in model.parameters())
 	classifier_parameters = sum(p.numel() for p in model.classifier_parameters())
@@ -64,7 +66,5 @@ def get_model(model_name, model_path = None):
 	# Disable gradients
 	for param in network.parameters():
 		param.requires_grad = False
-
-	count_parameters(network)
 
 	return network

@@ -13,7 +13,7 @@ from matplotlib import lines
 from sklearn.metrics import balanced_accuracy_score
 
 import tools.miscellaneous as misc
-from models.model_helpers import get_model
+import model_helpers
 from tools.batch import BatchGenerator
 
 
@@ -26,11 +26,9 @@ class Network:
 		# Choose torch device
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# Setup chosen CNN model
-		self.network = get_model(model_name, model_weights_path).to(self.device)
+		self.network = model_helpers.get_model(model_name, model_weights_path).to(self.device)
 		# Loss function and optimizer
 		self.criterion = nn.BCEWithLogitsLoss()
-
-		# print(self.network)
 
 
 	"""
@@ -90,7 +88,8 @@ class Network:
 	def train(self, dataset, dataset_path, epochs = 10, batch_size = 24, 
 			lr = 0.0002, momentum = 0.9, training_level = 'classifier'):
 		
-		self.network.train()
+		# Display network parameter division ratios
+		model_helpers.count_parameters(self.network)
 
 		# Assert the batch_size is even
 		assert batch_size % 2 == 0, "Uneven batch_size: {}".format(batch_size)
@@ -163,6 +162,9 @@ class Network:
 		for epoch in range(1, epochs+1):
 			accuracies = []
 			errors = []
+
+			# Set to training mode
+			self.network.train()
 
 			# Unfreezing gradients
 			if training_level == 'lower':

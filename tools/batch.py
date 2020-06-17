@@ -275,7 +275,9 @@ class BatchGenerator:
 
 
 	def show_tensor(self, tensor):
+		# Convert to numpy array
 		image = np.moveaxis(tensor.cpu().detach().numpy(), 0, -1)
+		# Denormalize from normalized tensor
 		image[:,:,0] = image[:,:,0] * 0.229 + 0.485
 		image[:,:,1] = image[:,:,1] * 0.224 + 0.456
 		image[:,:,2] = image[:,:,2] * 0.225 + 0.406
@@ -348,9 +350,9 @@ class BatchGenerator:
 					left 	= fake_boxes[str(frame_numbers[i])]['0']['left']
 					right 	= fake_boxes[str(frame_numbers[i])]['0']['right']
 					fake_face = preprocessing.crop_image(fake_frames[i], (top, bottom, left, right))
-					preprocessing.show_test_img(fake_face)
+					# preprocessing.show_test_img(fake_face)
 					fake_face = self.training_transform(fake_face)
-					self.show_tensor(fake_face)
+					# self.show_tensor(fake_face)
 					fake_faces.append(fake_face)
 			except CorruptVideoError:
 				fake_video_handle.release()
