@@ -107,16 +107,16 @@ class Network:
 		labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = self.device, requires_grad = False, dtype = torch.float)
 		labels = labels.view(-1,1)
 		
-		# Create log file w/ information from every iteration
-		filename = self.model_name + "_" + dataset + "_"
-		filename += training_level + "_iterations"
-		log_header = "Epoch,Folder,FakeVideo,RealVideo,Loss,Accuracy,\n"
-		iteration_log = misc.create_log(filename, header_string = log_header)
-		# Create log file w/ train/val information for epoch
+		# Create log file w/ train/val information per epoch
 		filename = self.model_name + "_" + dataset + "_"
 		filename += training_level + "_epochs"
 		log_header = "epoch,train_loss,train_acc,val_loss,val_acc\n"
 		epoch_log = misc.create_log(filename, header_string = log_header)
+		# Create log file w/ information from validation runs
+		filename = self.model_name + "_" + dataset + "_"
+		filename += training_level + "_validation"
+		log_header = "Epoch,File,Label,AvgOutput,Loss,Acc\n"
+		validation_log = misc.create_log(filename, header_string = log_header)
 
 		# Assemble a list of training samples
 		training_samples = []
@@ -242,12 +242,7 @@ class Network:
 					postfix_dict = {'loss': round(np.mean(errors), 2), 'acc': round(np.mean(accuracies), 2)}
 					progress_bar.set_postfix(postfix_dict, refresh = False)
 
-					# Log results
-					log_string = "{},{},{},{},{:.2f},{:.2f},\n".format(
-								epoch, os.path.split(os.path.dirname(real_video_path))[1], 
-								os.path.basename(fake_video_path), os.path.basename(real_video_path), 
-								err, acc)
-					misc.add_to_log(log_file = iteration_log, log_string = log_string)
+					break
 
 			# Clean CUDA cache
 			torch.cuda.empty_cache()
@@ -255,7 +250,7 @@ class Network:
 			self.save_model(dataset + "_" + str(epoch) + "_", training_level)
 
 			# Run validation
-			val_dict = self.evaluate(dataset, dataset_path, 'val')
+			val_dict = self.evaluate(dataset, dataset_path, 'val', val_log_info =  (validation_log, epoch))
 			val_loss = val_dict['loss']
 			val_acc = val_dict['acc']
 
@@ -267,12 +262,13 @@ class Network:
 
 	"""
 	Function for evaluation of the model on the chosen dataset.
-		dataset 	 - one of {kaggle, faceforensics}
-		dataset_path - absolute path to the dataset
-		mode 		 - one of {val, test}
-		batch_size	 - number of frames to be grabbed from each video
+		dataset 	 	- one of {kaggle, faceforensics}
+		dataset_path 	- absolute path to the dataset
+		mode 		 	- one of {val, test}
+		batch_size	 	- number of frames to be grabbed from each video
+		val_log_info 	- (filename, epoch_number) info for logging
 	"""
-	def evaluate(self, dataset, dataset_path, mode, batch_size = 24):
+	def evaluate(self, dataset, dataset_path, mode, batch_size = 24, val_log_info = None):
 		
 		self.network.eval()
 		
@@ -376,6 +372,13 @@ class Network:
 				# Refresh tqdm postfix
 				postfix_dict = {'loss': round(np.mean(overall_err), 2), 'acc': round(np.mean(overall_acc), 2)}
 				progress_bar.set_postfix(postfix_dict, refresh = False)
+
+				# Log results if val_log_info exists
+				if val_log_info:
+					validation_log_filename, epoch = val_log_info
+					avg_output = np.mean(o)
+					log_string = "{},{},{},{:.2f},{:.2f},{:.2f},\n".format(epoch,video_path, label, avg_output, err, acc)
+					misc.add_to_log(log_file = validation_log_filename, log_string = log_string)
 
 		torch.cuda.empty_cache()
 		return {'loss': np.mean(overall_err), 'acc': np.mean(overall_acc)}
