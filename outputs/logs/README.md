@@ -1,1 +1,0 @@
-Log files collected from training execution

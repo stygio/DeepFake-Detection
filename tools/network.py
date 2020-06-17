@@ -10,6 +10,7 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib import lines
+from sklearn.metrics import balanced_accuracy_score
 
 import tools.miscellaneous as misc
 from models.model_helpers import get_model
@@ -242,15 +243,13 @@ class Network:
 					postfix_dict = {'loss': round(np.mean(errors), 2), 'acc': round(np.mean(accuracies), 2)}
 					progress_bar.set_postfix(postfix_dict, refresh = False)
 
-					break
-
 			# Clean CUDA cache
 			torch.cuda.empty_cache()
 			# Save the model weights after each folder
 			self.save_model(dataset + "_" + str(epoch) + "_", training_level)
 
 			# Run validation
-			val_dict = self.evaluate(dataset, dataset_path, 'val', val_log_info =  (validation_log, epoch))
+			val_dict = self.evaluate(dataset, dataset_path, 'val', val_log_info = (validation_log, epoch))
 			val_loss = val_dict['loss']
 			val_acc = val_dict['acc']
 
@@ -332,6 +331,10 @@ class Network:
 		overall_acc = []
 		random.shuffle(evaluation_samples)
 		progress_bar = tqdm(evaluation_samples, desc = '{} ({} set)'.format(dataset, mode))
+
+		# Predictions for balanced accuracy calculation
+		output_true = []
+		output_pred = []
 		
 		# Run evaluation loop
 		for video_path, label in progress_bar:			
@@ -365,6 +368,7 @@ class Network:
 				o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
 				l = labels.cpu().detach().numpy()
 				acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
+				avg_output = np.mean(o)
 				# Add accuracy, error to lists & increment iteration
 				overall_err.append(err)
 				overall_acc.append(acc)
@@ -373,13 +377,16 @@ class Network:
 				postfix_dict = {'loss': round(np.mean(overall_err), 2), 'acc': round(np.mean(overall_acc), 2)}
 				progress_bar.set_postfix(postfix_dict, refresh = False)
 
+				output_true.append(1 if label == 'REAL' else 0)
+				output_pred.append(1 if avg_output > 0.5 else 0)
+
 				# Log results if val_log_info exists
 				if val_log_info:
 					validation_log_filename, epoch = val_log_info
-					avg_output = np.mean(o)
 					log_string = "{},{},{},{:.2f},{:.2f},{:.2f},\n".format(epoch,video_path, label, avg_output, err, acc)
 					misc.add_to_log(log_file = validation_log_filename, log_string = log_string)
 
+		print('Balanced accuracy score: {:.2f}%'.format(balanced_accuracy_score(output_true, output_pred) * 100))
 		torch.cuda.empty_cache()
 		return {'loss': np.mean(overall_err), 'acc': np.mean(overall_acc)}
 

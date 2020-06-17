@@ -13,16 +13,20 @@ import tools.miscellaneous as misc
 class BatchGenerator:
 	
 	def __init__(self, model_type, device, batch_size):
-		self.training_transform = transform.data_augmentation
 		self.model_transform = transform.model_transforms[model_type]
 		self.device = device
 		self.batch_size = batch_size
 		# Initializing mobilenet for face recognition
 		preprocessing.initialize_mobilenet(0.4)
 
-	def tensor_transform(self, data):
-		data = self.model_transform(data) # * (1./255)
-		# print('Tensor -> max: {}, min: {}'.format(np.amax(data.cpu().detach().numpy()), np.amin(data.cpu().detach().numpy())))
+	# Data transform to be used in training
+	def training_transform(self, data):
+		data = transform.random_erasing(self.model_transform(transform.data_augmentation(transform.to_PIL(data))))
+		return data
+
+	# Data transform to be used in evaluation/detection
+	def evaluation_transform(self, data):
+		data = self.model_transform(transform.to_PIL(data))
 		return data
 
 	# Create a batch of face images from a point in the video
@@ -50,7 +54,7 @@ class BatchGenerator:
 				if len(face_positions) == 0:
 					raise NoFaceDetected("No faces detected in {}".format(video_path))
 				elif len(face_positions) == 1:
-					tensor_img = self.tensor_transform(Image.fromarray(faces[0]))
+					tensor_img = self.evaluation_transform(faces[0])
 					batch.append(tensor_img)
 				else:
 					raise MultipleFacesDetected("Multiple faces detected in {}".format(video_path))
@@ -74,7 +78,7 @@ class BatchGenerator:
 			if len(face_positions) == 0:
 					raise NoFaceDetected("No faces detected.")
 			elif len(face_positions) == 1:
-				tensor_img = self.tensor_transform(Image.fromarray(faces[0]))
+				tensor_img = self.evaluation_transform(faces[0])
 				batch.append(tensor_img)
 			else:
 				raise MultipleFacesDetected("Multiple faces detected.")
@@ -112,7 +116,7 @@ class BatchGenerator:
 				if len(face_positions) == 0:
 					raise NoFaceDetected("No faces detected in {}".format(video_path))
 				elif len(face_positions) == 1:
-					tensor_img = self.tensor_transform(Image.fromarray(faces[0]))
+					tensor_img = self.evaluation_transform(faces[0])
 					batch.append(tensor_img)
 					labels.append(label)
 				else:
@@ -271,7 +275,10 @@ class BatchGenerator:
 
 
 	def show_tensor(self, tensor):
-		image = np.moveaxis(tensor.cpu().detach().numpy(), 0, -1) * 255
+		image = np.moveaxis(tensor.cpu().detach().numpy(), 0, -1)
+		image[:,:,0] = image[:,:,0] * 0.229 + 0.485
+		image[:,:,1] = image[:,:,1] * 0.224 + 0.456
+		image[:,:,2] = image[:,:,2] * 0.225 + 0.406
 		cv2.imshow("tensor", image)
 		cv2.waitKey(0)
 		cv2.destroyAllWindows()
@@ -325,7 +332,7 @@ class BatchGenerator:
 		if fake_data_type == 'images':
 			for frame_nr in frame_numbers:
 				fake_face = cv2.imread(os.path.join(fake_images_path, '{}.png'.format(frame_nr)))
-				fake_faces.append(self.tensor_transform(self.training_transform(transform.to_PIL(fake_face))))			
+				fake_faces.append(self.training_transform(fake_face))
 		else:
 			try:
 				# Check that the video was opened successfully
@@ -341,9 +348,9 @@ class BatchGenerator:
 					left 	= fake_boxes[str(frame_numbers[i])]['0']['left']
 					right 	= fake_boxes[str(frame_numbers[i])]['0']['right']
 					fake_face = preprocessing.crop_image(fake_frames[i], (top, bottom, left, right))
-					# preprocessing.show_test_img(fake_face)
-					fake_face = self.tensor_transform(self.training_transform(transform.to_PIL(fake_face)))
-					# self.show_tensor(fake_face)
+					preprocessing.show_test_img(fake_face)
+					fake_face = self.training_transform(fake_face)
+					self.show_tensor(fake_face)
 					fake_faces.append(fake_face)
 			except CorruptVideoError:
 				fake_video_handle.release()
@@ -354,7 +361,7 @@ class BatchGenerator:
 		if real_data_type == 'images':
 			for frame_nr in frame_numbers:
 				real_face = cv2.imread(os.path.join(real_images_path, '{}.png'.format(frame_nr)))
-				real_faces.append(self.tensor_transform(self.training_transform(transform.to_PIL(real_face))))
+				real_faces.append(self.training_transform(real_face))
 		else:
 			try:
 				# Check that the video was opened successfully
@@ -371,7 +378,7 @@ class BatchGenerator:
 					left 	= real_boxes[str(frame_numbers[i])]['0']['left']
 					right 	= real_boxes[str(frame_numbers[i])]['0']['right']
 					real_face = preprocessing.crop_image(real_frames[i], (top, bottom, left, right))
-					real_faces.append(self.tensor_transform(self.training_transform(transform.to_PIL(real_face))))
+					real_faces.append(self.training_transform(real_face))
 			except CorruptVideoError:
 				real_video_handle.release()
 				# Move the file to a folder for corrupt videos
@@ -383,7 +390,7 @@ class BatchGenerator:
 		return batch
 
 
-		"""
+	"""
 	Function to retrieve a generator of training batches in tensor form (Kaggle dataset)
 	The batches contain sequences of consecutive frames from a two videos (half of the batch from each one)
 		fake_video_path	- path to the altered video
@@ -419,7 +426,7 @@ class BatchGenerator:
 				left 	= boxes[str(frame_numbers[i])]['0']['left']
 				right 	= boxes[str(frame_numbers[i])]['0']['right']
 				face = preprocessing.crop_image(frames[i], (top, bottom, left, right))
-				faces.append(self.tensor_transform(Image.fromarray(face)))
+				faces.append(self.evaluation_transform(face))
 
 			batch = torch.stack(faces).to(self.device)
 			return batch
@@ -463,7 +470,7 @@ class BatchGenerator:
 						left 	= boxes[str(start_frame + i)]['0']['left']
 						right 	= boxes[str(start_frame + i)]['0']['right']
 						face = preprocessing.crop_image(batch[i], (top, bottom, left, right))
-						faces.append(self.tensor_transform(Image.fromarray(face)))
+						faces.append(self.evaluation_transform(face))
 
 					batch = torch.stack(faces).to(self.device)
 					yield batch
