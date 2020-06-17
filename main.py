@@ -28,7 +28,7 @@ if __name__ == '__main__':
 	p.add_argument('--mode', 		'-m', 	type = str, 
 		choices = ['train', 'val', 'test', 'detect'], required = True)
 	p.add_argument('--model_name', 	'-mn', 	type = str,	
-		choices = ['xception', 'inception_v3', 'resnet152', 'resnext101'], required = True)
+		choices = ['xception', 'inception_v3', 'resnet152', 'resnext101', 'efficientnet-b5'], required = True)
 	p.add_argument('--model_path', 	'-mp', 	type = str, 
 		help = "path to saved model", 	default = None)
 	p.add_argument('--dataset', 	'-d', 	type = str, 

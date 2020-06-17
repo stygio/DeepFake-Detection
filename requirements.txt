@@ -3,3 +3,4 @@ opencv-python
 tensorflow_gpu==1.14.0
 tqdm
 matplotlib
+efficientnet-pytorch

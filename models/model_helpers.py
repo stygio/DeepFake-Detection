@@ -4,6 +4,7 @@ from models.xception import Binary_Xception
 from models.inception_v3 import Binary_Inception
 from models.resnet152 import Binary_ResNet152
 from models.resnext101 import Binary_ResNeXt101
+from models.efficientnet import Binary_EfficientNet
 
 
 # Display network parameter counts in ratios of total parameters in the model
@@ -30,24 +31,33 @@ def get_model(model_name, model_path = None):
 		else:
 			network = Binary_Xception(pretrained = False)
 			network.load_state_dict(load(model_path))
+	
 	elif model_name == "inception_v3":
 		if model_path == None:
 			network = Binary_Inception(pretrained = True)
 		else:
 			network = Binary_Inception(pretrained = False)
 			network.load_state_dict(load(model_path))
+	
 	elif model_name == "resnet152":
 		if model_path == None:
 			network = Binary_ResNet152(pretrained = True)
 		else:
 			network = Binary_ResNet152(pretrained = False)
 			network.load_state_dict(load(model_path))
+	
 	elif model_name == "resnext101":
 		if model_path == None:
 			network = Binary_ResNeXt101(pretrained = True)
 		else:
 			network = Binary_ResNeXt101(pretrained = False)
 			network.load_state_dict(load(model_path))
+	
+	elif model_name == "efficientnet-b5":
+		network = Binary_EfficientNet.from_pretrained(model_name, num_classes = 1)
+		if model_path:
+			network.load_state_dict(load(model_path))
+
 	else:
 		raise Exception("Invalid model chosen.")
 
