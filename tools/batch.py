@@ -20,8 +20,11 @@ class BatchGenerator:
 		preprocessing.initialize_mobilenet(0.4)
 
 	# Data transform to be used in training
-	def training_transform(self, data):
-		data = transform.random_erasing(self.model_transform(transform.data_augmentation(transform.to_PIL(data))))
+	def training_transform(self, data, random_erasing = False):
+		if random_erasing:
+			data = transform.random_erasing(self.model_transform(transform.data_augmentation(transform.to_PIL(data))))
+		else:
+			data = self.model_transform(transform.data_augmentation(transform.to_PIL(data)))
 		return data
 
 	# Data transform to be used in evaluation/detection

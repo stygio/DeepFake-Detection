@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 from matplotlib import lines
 from sklearn.metrics import balanced_accuracy_score
 
-import tools.miscellaneous as misc
-import model_helpers
 from tools.batch import BatchGenerator
+from models import model_helpers
+import tools.miscellaneous as misc
 
 
 class Network:
