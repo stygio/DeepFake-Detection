@@ -15,6 +15,7 @@ from sklearn.metrics import balanced_accuracy_score
 from tools.batch import BatchGenerator
 from models import model_helpers
 import tools.miscellaneous as misc
+from radam.radam import RAdam
 
 
 class Network:
@@ -85,8 +86,8 @@ class Network:
 		dataset    		- choice of dataset to train on
 		dataset_path	- path to dataset on local machine
 	"""
-	def train(self, dataset, dataset_path, epochs = 10, batch_size = 24, 
-			lr = 0.0002, momentum = 0.9, training_level = 'classifier'):
+	def train(self, dataset, dataset_path, epochs = 10, batch_size = 14, 
+			lr = 0.001, momentum = 0.9, training_level = 'classifier'):
 		
 		# Display network parameter division ratios
 		model_helpers.count_parameters(self.network)
@@ -102,6 +103,20 @@ class Network:
 		
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
+
+		# Initializing optimizer with appropriate lr
+		classifier_lr = lr
+		higher_level_lr = 0.1 * classifier_lr
+		lower_level_lr = 0.1 * higher_level_lr
+		# optimizer = optim.SGD([
+		# 	{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
+		# 	{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
+		# 	{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}
+		# ], momentum = momentum)
+		optimizer = RAdam([
+			{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
+			{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
+			{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 1e-4)
 
 		# Get label tensor
 		labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2), device = self.device, requires_grad = False, dtype = torch.float)
@@ -173,15 +188,15 @@ class Network:
 				self.network.unfreeze_higher_level()
 			self.network.unfreeze_classifier()
 			
-			# Initializing optimizer with appropriate lr
-			classifier_lr = lr * 0.8**(epoch-1)
-			higher_level_lr = 1. * classifier_lr
-			lower_level_lr = 1. * higher_level_lr
-			optimizer = optim.SGD([
-				{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
-				{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
-				{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}
-			], momentum = momentum)
+			# # Initializing optimizer with appropriate lr
+			# classifier_lr = lr * 0.8**(epoch-1)
+			# higher_level_lr = 1. * classifier_lr
+			# lower_level_lr = 1. * higher_level_lr
+			# optimizer = optim.SGD([
+			# 	{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
+			# 	{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
+			# 	{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}
+			# ], momentum = momentum)
 
 			# Shuffle training_samples and initialize progress bar
 			random.shuffle(training_samples)

@@ -42,9 +42,12 @@ def extract_faces(dataset):
 			video_path = os.path.join(folder_path, video)
 			bb_path = os.path.join(folder_path, 'bounding_boxes', os.path.splitext(video)[0]) + '.json'
 			target_folder = os.path.join(folder_path, 'images', os.path.splitext(video)[0])
+
+			# Check whether the video is tagged for multiple faces
+			multiple_faces = json.load(open(bb_path))['multiple_faces']
 			
-			# Only extract if the video hasn't been extracted already
-			if not os.path.isdir(target_folder):
+			# Only extract if the video hasn't been extracted already & has a single face
+			if not os.path.isdir(target_folder) and not multiple_faces:
 				# In case of a KeyboardInterrupt remove the folder currently being made
 				try:
 					os.makedirs(target_folder)
@@ -54,4 +57,4 @@ def extract_faces(dataset):
 					raise
 	
 
-extract_faces('kaggle')
+extract_faces('faceforensics')

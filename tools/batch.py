@@ -337,7 +337,7 @@ class BatchGenerator:
 		if fake_data_type == 'images':
 			for frame_nr in frame_numbers:
 				fake_face = cv2.imread(os.path.join(fake_images_path, '{}.png'.format(frame_nr)))
-				fake_faces.append(self.training_transform(fake_face))
+				fake_faces.append(self.training_transform(fake_face, random_erasing = True))
 		else:
 			try:
 				# Check that the video was opened successfully
@@ -354,7 +354,7 @@ class BatchGenerator:
 					right 	= fake_boxes[str(frame_numbers[i])]['0']['right']
 					fake_face = preprocessing.crop_image(fake_frames[i], (top, bottom, left, right))
 					# preprocessing.show_test_img(fake_face)
-					fake_face = self.training_transform(fake_face)
+					fake_face = self.training_transform(fake_face, random_erasing = True)
 					# self.show_tensor(fake_face)
 					fake_faces.append(fake_face)
 			except CorruptVideoError:
@@ -366,7 +366,7 @@ class BatchGenerator:
 		if real_data_type == 'images':
 			for frame_nr in frame_numbers:
 				real_face = cv2.imread(os.path.join(real_images_path, '{}.png'.format(frame_nr)))
-				real_faces.append(self.training_transform(real_face))
+				real_faces.append(self.training_transform(real_face, random_erasing = True))
 		else:
 			try:
 				# Check that the video was opened successfully
@@ -383,7 +383,7 @@ class BatchGenerator:
 					left 	= real_boxes[str(frame_numbers[i])]['0']['left']
 					right 	= real_boxes[str(frame_numbers[i])]['0']['right']
 					real_face = preprocessing.crop_image(real_frames[i], (top, bottom, left, right))
-					real_faces.append(self.training_transform(real_face))
+					real_faces.append(self.training_transform(real_face, random_erasing = True))
 			except CorruptVideoError:
 				real_video_handle.release()
 				# Move the file to a folder for corrupt videos
