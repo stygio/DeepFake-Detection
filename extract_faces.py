@@ -9,7 +9,7 @@ kaggle_path = "D:/Kaggle_Dataset"
 face_forensics_path = "D:/FaceForensics_Dataset"
 
 
-# Extract faces from the FaceForensics dataset
+# Extract faces from the chosen dataset
 def extract_faces(dataset):
 	# Retrieve folder_paths based on dataset
 	if dataset == 'faceforensics':
