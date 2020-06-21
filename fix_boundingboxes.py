@@ -90,7 +90,7 @@ def fix_boundingboxes(dataset, mobilenet_gpu_allocation = 0.75):
 
 	for folder_path in folder_paths:
 		videos = os.listdir(folder_path)
-		videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces"]]
+		videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
 
 		for video in tqdm(videos, desc = folder_path):
 			video_path = os.path.join(folder_path, video)
