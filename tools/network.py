@@ -249,7 +249,7 @@ class Network:
 			self.save_model(dataset + "_" + str(epoch) + "_", training_level)
 
 			# Run validation
-			val_dict = self.evaluate(dataset, dataset_path, 'val', batch_size = batch_size,
+			val_dict = self.evaluate(dataset, dataset_path, 'val', batch_size = 5,
 					val_log_info = (validation_log, epoch))
 			val_loss = val_dict['loss']
 			val_acc = val_dict['acc']
