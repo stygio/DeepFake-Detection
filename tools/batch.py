@@ -295,8 +295,7 @@ class BatchGenerator:
 		fake_video_path	- path to the altered video
 		real_video_path	- path to the original video the fake is based on
 	"""
-	def training_batch_video_pair(self, data):
-
+	def multiple_frames_per_video(self, data):
 		faces = []
 
 		for data_dict in data:
@@ -343,8 +342,7 @@ class BatchGenerator:
 		fake_video_path	- path to the altered video
 		real_video_path	- path to the original video the fake is based on
 	"""
-	def training_batch_various_videos(self, data):
-
+	def single_frame_per_video(self, data):
 		faces = []
 
 		for data_dict in data:
@@ -381,54 +379,6 @@ class BatchGenerator:
 
 		batch = torch.stack(faces).to(self.device)
 		return batch
-
-
-	"""
-	Function to retrieve a generator of training batches in tensor form (Kaggle dataset)
-	The batches contain sequences of consecutive frames from a two videos (half of the batch from each one)
-		fake_video_path	- path to the altered video
-		real_video_path	- path to the original video the fake is based on
-	"""
-	def evaluation_batch(self, video_path, boxes):
-		# Open the video
-		video_handle = cv2.VideoCapture(video_path)
-		video_length = video_handle.get(7)
-		
-		# Calculate which frames to grab from the video
-		n = int(video_length/self.batch_size)
-		assert n >= 1, "Video length smaller than batch_size in " + video_path
-		frame_numbers = [0]
-		for _ in range(int(self.batch_size) - 1):
-			frame_numbers.append(frame_numbers[-1] + n)
-		assert frame_numbers[-1] < video_length, "Video length too short for requested frames in " + video_path
-		
-		try:
-			# Check that the video was opened successfully
-			if video_handle.isOpened() == False:
-				raise CorruptVideoError("cv2.VideoCapture() failed to open {}".format(video_path))
-
-			# Frames from the fake video
-			frames = opencv_helpers.specific_frames(video_handle, frame_numbers)
-			video_handle.release()
-
-			# Retrieve boundingbox information and crop images
-			faces = []
-			for i in range(int(self.batch_size)):
-				top 	= boxes[str(frame_numbers[i])]['0']['top']
-				bottom 	= boxes[str(frame_numbers[i])]['0']['bottom']
-				left 	= boxes[str(frame_numbers[i])]['0']['left']
-				right 	= boxes[str(frame_numbers[i])]['0']['right']
-				face = preprocessing.crop_image(frames[i], (top, bottom, left, right))
-				faces.append(self.evaluation_transform(face))
-
-			batch = torch.stack(faces).to(self.device)
-			return batch
-		
-		except CorruptVideoError as Error:
-			# Release the video file
-			video_handle.release()
-			# Move the file to a folder for corrupt videos
-			misc.put_file_in_folder(file_path = video_path, folder = "bad_samples")
 
 
 	"""

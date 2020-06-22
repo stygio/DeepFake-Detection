@@ -189,7 +189,7 @@ class Network:
 					fake_dict = self.get_data_dict(fake_video_path)
 					# Calculating step of frames to skip in video (subtract total_epochs to ensure there are enough frames)
 					frame_step = int((fake_dict['length'] - epochs) / int(batch_size / 2))
-					end = epoch + int(batch_size/2) * (frame_step - 1) + 1
+					end = epoch + int(batch_size/2 - 1) * frame_step + 1
 					# List of frames [epoch:n:end] to be grabbed from the video
 					frame_numbers = list(range(epoch, end, frame_step))
 					fake_dict['frame_numbers'] = frame_numbers
@@ -197,7 +197,7 @@ class Network:
 
 					real_dict = self.get_data_dict(real_video_path)
 					frame_step = int((real_dict['length'] - epochs) / int(batch_size / 2))
-					end = epoch + int(batch_size/2) * (frame_step - 1) + 1
+					end = epoch + int(batch_size/2 - 1) * frame_step + 1
 					frame_numbers = list(range(epoch, end, frame_step))
 					real_dict['frame_numbers'] = frame_numbers
 					data.append(real_dict)
@@ -214,9 +214,9 @@ class Network:
 				if training_type == 'dual' or (training_type == 'various' and len(data) == batch_size):
 					# Get batch
 					if training_type == 'dual':
-						batch = BG.training_batch_video_pair(data = data)
+						batch = BG.multiple_frames_per_video(data = data)
 					elif training_type == 'various':
-						batch = BG.training_batch_various_videos(data = data)
+						batch = BG.single_frame_per_video(data = data)
 					data = []
 
 					self.network.zero_grad()
@@ -279,113 +279,63 @@ class Network:
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
 		
-		evaluation_samples = []
-
-		if dataset == 'faceforensics':
-			# Folders in the faceforensics directory
-			original_sequences = os.path.join(dataset_path, 'original_sequences')
-			real_folder = os.path.join(original_sequences, 'c23', 'videos')
-			manipulated_sequences = os.path.join(dataset_path, 'manipulated_sequences')
-			fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences)]
-			fake_folders = [os.path.join(x, 'c23', 'videos') for x in fake_folders]
-
-			# Originals
-			videos = os.listdir(real_folder)
-			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
-			metadata = os.path.join(real_folder, "metadata.json")
-			metadata = json.load(open(metadata))
-			for video in videos:
-				# Check if video belongs to the correct dataset split
-				if metadata[video]['split'] == mode:
-					real_video_path = os.path.join(real_folder, video)
-					evaluation_samples.append((real_video_path, 'REAL'))
-			# Fake videos
-			for folder_path in fake_folders:
-				videos = os.listdir(folder_path)
-				videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
-				metadata = os.path.join(folder_path, "metadata.json")
-				metadata = json.load(open(metadata))
-				for video in videos:
-					# Check if video belongs to the correct dataset split
-					if metadata[video]['split'] == mode:
-						fake_video_path = os.path.join(folder_path, video)
-						evaluation_samples.append((fake_video_path, 'FAKE'))
-
-		elif dataset == 'kaggle':
-			# Folders in the kaggle directory
-			folder_paths = [os.path.join(dataset_path, x) for x in os.listdir(dataset_path)]
-
-			# Iterate through folders and construct list of samples
-			for folder_path in folder_paths:
-				videos = os.listdir(folder_path)
-				videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
-				metadata = os.path.join(folder_path, "metadata.json")
-				metadata = json.load(open(metadata))
-				for video in videos:
-					# Check if video belongs to the correct dataset split
-					if metadata[video]['split'] == mode:
-						video_path = os.path.join(folder_path, video)
-						evaluation_samples.append((video_path, metadata[video]['label']))
-
 		# Initialize lists or err/acc & progress bar
 		overall_err = []
 		overall_acc = []
+		evaluation_samples = misc.get_evaluation_samples(dataset, dataset_path, mode)		
 		random.shuffle(evaluation_samples)
 		progress_bar = tqdm(evaluation_samples, desc = '{} ({} set)'.format(dataset, mode))
 
 		# Predictions for balanced accuracy calculation
-		output_true = []
-		output_pred = []
+		output_true, output_pred = [], []
 		
 		# Run evaluation loop
-		for video_path, label in progress_bar:			
-			# Retrieving dict of bounding boxes for faces
-			bb_path = os.path.join(os.path.dirname(video_path), "bounding_boxes")
-			bounding_boxes  = os.path.join(bb_path, os.path.splitext(os.path.basename(video_path))[0]) + ".json"
-			bounding_boxes = json.load(open(bounding_boxes))
-			# Check if the video contains frames with multiple faces
-			multiple_faces = bounding_boxes['multiple_faces']
+		for video_path, label in progress_bar:
 
-			# Only run training for fake videos, with an existing original and a single face
-			if not multiple_faces:
+			data_dict = self.get_data_dict(video_path)
+			# Calculating step of frames to skip in video (subtract total_epochs to ensure there are enough frames)
+			frame_step = int((data_dict['length'] - 1) / int(batch_size))
+			end = 1 + int(batch_size - 1) * frame_step + 1
+			# List of frames [epoch:n:end] to be grabbed from the video
+			frame_numbers = list(range(1, end, frame_step))
+			data_dict['frame_numbers'] = frame_numbers
 
-				# Get batch
-				batch = BG.evaluation_batch(video_path, boxes = bounding_boxes)
-				# Feed batch through network
-				output = self.network(batch.detach())
-				# Get label tensor for this video
-				if label == 'REAL':
-					labels = torch.tensor([1]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
-				else:
-					labels = torch.tensor([0]*batch_size, device = self.device, requires_grad = False, dtype = torch.float)
-				labels = labels.view(-1,1)
-				# Compute loss
-				err = self.criterion(output, labels)
+			# Get batch
+			batch = BG.multiple_frames_per_video([data_dict])
+			# Get label tensor for this video
+			label = 0 if label == 'FAKE' else 1
+			labels = torch.tensor([label] * batch_size, device = self.device, requires_grad = False, dtype = torch.float)
+			labels = labels.view(-1,1)
+			# Feed batch through network
+			output = self.network(batch.detach())
+			
+			# Compute loss
+			err = self.criterion(output, labels)
+			# Get loss
+			err = err.item()
+			# Calculating accuracy for mixed samples
+			o = output.cpu().detach().numpy()
+			o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
+			l = labels.cpu().detach().numpy()
+			acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
+			avg_output = np.mean(o)
+			# Add accuracy, error to lists & increment iteration
+			overall_err.append(err)
+			overall_acc.append(acc)
 
-				# Get loss
-				err = err.item()
-				# Calculating accuracy for mixed samples
-				o = output.cpu().detach().numpy()
-				o = 1 / (1 + np.exp(-o)) # Applying the sigmoid to the output
-				l = labels.cpu().detach().numpy()
-				acc = np.sum(np.round(o) == np.round(l)) / batch_size * 100
-				avg_output = np.mean(o)
-				# Add accuracy, error to lists & increment iteration
-				overall_err.append(err)
-				overall_acc.append(acc)
+			# Refresh tqdm postfix
+			postfix_dict = {'loss': round(np.mean(overall_err), 2), 'acc': round(np.mean(overall_acc), 2)}
+			progress_bar.set_postfix(postfix_dict, refresh = False)
 
-				# Refresh tqdm postfix
-				postfix_dict = {'loss': round(np.mean(overall_err), 2), 'acc': round(np.mean(overall_acc), 2)}
-				progress_bar.set_postfix(postfix_dict, refresh = False)
+			# For balanced accuracy calculation
+			output_true.append(1 if label == 'REAL' else 0)
+			output_pred.append(1 if avg_output > 0.5 else 0)
 
-				output_true.append(1 if label == 'REAL' else 0)
-				output_pred.append(1 if avg_output > 0.5 else 0)
-
-				# Log results if val_log_info exists
-				if val_log_info:
-					validation_log_filename, epoch = val_log_info
-					log_string = "{},{},{},{:.2f},{:.2f},{:.2f},\n".format(epoch,video_path, label, avg_output, err, acc)
-					misc.add_to_log(log_file = validation_log_filename, log_string = log_string)
+			# Log results if val_log_info exists
+			if val_log_info:
+				validation_log_filename, epoch = val_log_info
+				log_string = "{},{},{},{:.2f},{:.2f},{:.2f},\n".format(epoch,video_path, label, avg_output, err, acc)
+				misc.add_to_log(log_file = validation_log_filename, log_string = log_string)
 
 		print('Balanced accuracy score: {:.2f}%'.format(balanced_accuracy_score(output_true, output_pred) * 100))
 		torch.cuda.empty_cache()

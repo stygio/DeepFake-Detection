@@ -163,3 +163,61 @@ def get_training_samples(dataset, dataset_path):
 					training_samples.append((fake_video_path, real_video_path))
 
 	return training_samples
+
+
+"""
+Assemble a list of evaluation samples
+	dataset 	 - name of dataset {faceforensics, kaggle}
+	dataset_path - absolute path to the dataset
+	split 		 - dataset split {val, test}
+"""
+def get_evaluation_samples(dataset, dataset_path, split):
+	evaluation_samples = []
+
+	if dataset == 'faceforensics':
+		# Folders in the faceforensics directory
+		original_sequences = os.path.join(dataset_path, 'original_sequences')
+		real_folder = os.path.join(original_sequences, 'c23', 'videos')
+		manipulated_sequences = os.path.join(dataset_path, 'manipulated_sequences')
+		fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences)]
+		fake_folders = [os.path.join(x, 'c23', 'videos') for x in fake_folders]
+
+		# Originals
+		videos = os.listdir(real_folder)
+		videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
+		metadata = os.path.join(real_folder, "metadata.json")
+		metadata = json.load(open(metadata))
+		for video in videos:
+			# Check if video belongs to the correct dataset split
+			if metadata[video]['split'] == split:
+				real_video_path = os.path.join(real_folder, video)
+				evaluation_samples.append((real_video_path, 'REAL'))
+		# Fake videos
+		for folder_path in fake_folders:
+			videos = os.listdir(folder_path)
+			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
+			metadata = os.path.join(folder_path, "metadata.json")
+			metadata = json.load(open(metadata))
+			for video in videos:
+				# Check if video belongs to the correct dataset split
+				if metadata[video]['split'] == split:
+					fake_video_path = os.path.join(folder_path, video)
+					evaluation_samples.append((fake_video_path, 'FAKE'))
+
+	elif dataset == 'kaggle':
+		# Folders in the kaggle directory
+		folder_paths = [os.path.join(dataset_path, x) for x in os.listdir(dataset_path)]
+
+		# Iterate through folders and construct list of samples
+		for folder_path in folder_paths:
+			videos = os.listdir(folder_path)
+			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
+			metadata = os.path.join(folder_path, "metadata.json")
+			metadata = json.load(open(metadata))
+			for video in videos:
+				# Check if video belongs to the correct dataset split
+				if metadata[video]['split'] == split:
+					video_path = os.path.join(folder_path, video)
+					evaluation_samples.append((video_path, metadata[video]['label']))
+
+	return evaluation_samples
