@@ -1,5 +1,6 @@
 import os
 import random
+import json
 from datetime import datetime
 
 log_dir = "outputs/logs/"
@@ -112,6 +113,7 @@ Get the absolute path to the directory containing extracted faces from a video
 """
 def get_images_path(video_path):
 	return os.path.join(os.path.dirname(video_path), "images", os.path.splitext(os.path.basename(video_path))[0])
+
 
 """
 Assemble a list of training samples

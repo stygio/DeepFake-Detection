@@ -271,7 +271,7 @@ class Network:
 	# 		misc.add_to_log(log_file = epoch_log, log_string = log_string)
 
 
-	def get_data_dict(video_path):
+	def get_data_dict(self, video_path):
 		# Collecting necessary data samples. 
 		# For some of them the face images may already be extracted to speed up preprocessing.
 		data_dict = {}
@@ -280,7 +280,7 @@ class Network:
 		if os.path.isdir(faces_path):
 			data_dict['type'] = 'images'
 			data_dict['images_path'] = os.path.join(faces_path, '0')
-			data_dict['length'] = max([int(os.path.splitext(x)[0]) for x in os.listdir(data)])
+			data_dict['length'] = max([int(os.path.splitext(x)[0]) for x in os.listdir(data_dict['images_path'])])
 		else:
 			data_dict['type'] = 'video'
 			data_dict['video_path'] = video_path
@@ -329,7 +329,7 @@ class Network:
 
 		# Get label tensor
 		if training_type == 'dual':
-			labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2) 
+			labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2),
 					device = self.device, requires_grad = False, dtype = torch.float)
 		elif training_type == 'various':
 			labels = torch.tensor([0, 1] * int(batch_size/2), 
@@ -379,16 +379,16 @@ class Network:
 					fake_dict = self.get_data_dict(fake_video_path)
 					# Calculating step of frames to skip in video (subtract total_epochs to ensure there are enough frames)
 					frame_step = int((fake_dict['length'] - epochs) / int(batch_size / 2))
-					end = epoch + int(batch_size/2) * frame_step + 1
+					end = epoch + int(batch_size/2) * (frame_step - 1) + 1
 					# List of frames [epoch:n:end] to be grabbed from the video
-					frame_numbers = list(range(start = epoch, stop = end, step = frame_step))
+					frame_numbers = list(range(epoch, end, frame_step))
 					fake_dict['frame_numbers'] = frame_numbers
 					data.append(fake_dict)
 
 					real_dict = self.get_data_dict(real_video_path)
 					frame_step = int((real_dict['length'] - epochs) / int(batch_size / 2))
-					end = epoch + int(batch_size/2) * frame_step + 1
-					frame_numbers = list(range(start = epoch, stop = end, step = frame_step))
+					end = epoch + int(batch_size/2) * (frame_step - 1) + 1
+					frame_numbers = list(range(epoch, end, frame_step))
 					real_dict['frame_numbers'] = frame_numbers
 					data.append(real_dict)
 
@@ -403,7 +403,10 @@ class Network:
 				# Only run training for fake videos, with an existing original and a single face
 				if training_type == 'dual' or (training_type == 'various' and len(data) == batch_size):
 					# Get batch
-					batch = BG.training_batch_various_videos(data = data)
+					if training_type == 'dual':
+						batch = BG.training_batch_video_pair(data = data)
+					elif training_type == 'various':
+						batch = BG.training_batch_various_videos(data = data)
 					data = []
 
 					self.network.zero_grad()
@@ -426,9 +429,9 @@ class Network:
 					errors.append(err)
 					accuracies.append(acc)
 					
-				# Refresh tqdm postfix
-				postfix_dict = {'loss': round(np.mean(errors), 2), 'acc': round(np.mean(accuracies), 2)}
-				progress_bar.set_postfix(postfix_dict, refresh = False)
+					# Refresh tqdm postfix
+					postfix_dict = {'loss': round(np.mean(errors), 2), 'acc': round(np.mean(accuracies), 2)}
+					progress_bar.set_postfix(postfix_dict, refresh = False)
 
 			# Clean CUDA cache
 			torch.cuda.empty_cache()

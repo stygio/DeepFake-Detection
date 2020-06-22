@@ -1,9 +1,9 @@
 import cv2
-from PIL import Image, ImageMath
 import torch
 import time
 import os
 import numpy as np
+import json
 
 from models import transform
 from tools import preprocessing, opencv_helpers
@@ -295,103 +295,45 @@ class BatchGenerator:
 		fake_video_path	- path to the altered video
 		real_video_path	- path to the original video the fake is based on
 	"""
-	def training_batch_video_pair(self, fake_data, real_data, epoch, total_epochs):
-		fake_video_path, fake_data, fake_data_type = fake_data
-		real_video_path, real_data, real_data_type = real_data
+	def training_batch_video_pair(self, data):
 
-		if fake_data_type == 'images':
-			fake_video_length = max([int(os.path.splitext(x)[0]) for x in os.listdir(fake_data)])
-			fake_images_path = fake_data
-		else:
-			fake_video_handle = cv2.VideoCapture(fake_video_path)
-			fake_video_length = fake_video_handle.get(7)
-			fake_boxes = fake_data
+		faces = []
 
-		if real_data_type == 'images':
-			real_video_length = max([int(os.path.splitext(x)[0]) for x in os.listdir(real_data)])
-			real_images_path = real_data
-		else:
-			real_video_handle = cv2.VideoCapture(real_video_path)
-			real_video_length = real_video_handle.get(7)
-			real_boxes = real_data
+		for data_dict in data:
+			if data_dict['type'] == 'images':
+				for frame_nr in data_dict['frame_numbers']:
+					face = cv2.imread(os.path.join(data_dict['images_path'], '{}.png'.format(frame_nr)))
+					# preprocessing.show_test_img(face)
+					faces.append(self.training_transform(face, random_erasing = True))
+					# self.show_tensor(face)
+			else:
+				try:
+					video_handle = cv2.VideoCapture(data_dict['video_path'])
+					# Check that the video was opened successfully
+					if video_handle.isOpened() == False:
+						raise CorruptVideoError("cv2.VideoCapture() failed to open {}".format(data_dict['video_path']))
+					# Frames from the video
+					frames = opencv_helpers.specific_frames(video_handle, data_dict['frame_numbers'])
+					video_handle.release()
+					# Retrieve boundingbox information and crop image
+					boxes = json.load(open(data_dict['boundingbox_path']))
+					for i, frame_nr in enumerate(data_dict['frame_numbers']):
+						top 	= boxes[str(frame_nr)]['0']['top']
+						bottom 	= boxes[str(frame_nr)]['0']['bottom']
+						left 	= boxes[str(frame_nr)]['0']['left']
+						right 	= boxes[str(frame_nr)]['0']['right']
+						face = preprocessing.crop_image(frames[i], (top, bottom, left, right))
+						# preprocessing.show_test_img(face)
+						face = self.training_transform(face, random_erasing = True)
+						# self.show_tensor(face)
+						faces.append(face)
+				except CorruptVideoError:
+					video_handle.release()
+					# Move the file to a folder for corrupt videos
+					misc.put_file_in_folder(file_path = data_dict['video_path'], folder = "bad_samples")
+					raise
 
-		# Open the two videos
-		real_video_handle = cv2.VideoCapture(real_video_path)
-		real_video_length = real_video_handle.get(7)
-		
-		# Calculate which frames to grab from the video
-		shorter_video_path = fake_video_path if fake_video_length <= real_video_length else real_video_path
-		shorter_video_length = fake_video_length if fake_video_length <= real_video_length else real_video_length
-		# Calculating step of frames to skip in video (subtract total_epochs to ensure there are enough frames)
-		n = int((shorter_video_length - total_epochs)/int(self.batch_size/2))
-		assert n >= 1, "Video length smaller than half of batch_size in " + shorter_video_path
-		# List of frames [epoch:n:end] to be grabbed from the videos
-		frame_numbers = [epoch]
-		for _ in range(int(self.batch_size/2) - 1):
-			frame_numbers.append(frame_numbers[-1] + n)
-		assert frame_numbers[-1] < fake_video_length, "Fake video length too short for requested frames in " + fake_video_path
-		assert frame_numbers[-1] < real_video_length, "Real video length too short for requested frames in " + real_video_path
-
-		fake_faces, real_faces = [], []
-		
-		if fake_data_type == 'images':
-			for frame_nr in frame_numbers:
-				fake_face = cv2.imread(os.path.join(fake_images_path, '{}.png'.format(frame_nr)))
-				fake_faces.append(self.training_transform(fake_face, random_erasing = True))
-		else:
-			try:
-				# Check that the video was opened successfully
-				if fake_video_handle.isOpened() == False:
-					raise CorruptVideoError("cv2.VideoCapture() failed to open {}".format(fake_video_path))
-				# Frames from the fake video
-				fake_frames = opencv_helpers.specific_frames(fake_video_handle, frame_numbers)
-				fake_video_handle.release()
-				# Retrieve boundingbox information and crop images
-				for i in range(int(self.batch_size/2)):
-					top 	= fake_boxes[str(frame_numbers[i])]['0']['top']
-					bottom 	= fake_boxes[str(frame_numbers[i])]['0']['bottom']
-					left 	= fake_boxes[str(frame_numbers[i])]['0']['left']
-					right 	= fake_boxes[str(frame_numbers[i])]['0']['right']
-					fake_face = preprocessing.crop_image(fake_frames[i], (top, bottom, left, right))
-					# preprocessing.show_test_img(fake_face)
-					fake_face = self.training_transform(fake_face, random_erasing = True)
-					# self.show_tensor(fake_face)
-					fake_faces.append(fake_face)
-			except CorruptVideoError:
-				fake_video_handle.release()
-				# Move the file to a folder for corrupt videos
-				misc.put_file_in_folder(file_path = fake_video_path, folder = "bad_samples")
-				raise
-
-		if real_data_type == 'images':
-			for frame_nr in frame_numbers:
-				real_face = cv2.imread(os.path.join(real_images_path, '{}.png'.format(frame_nr)))
-				real_faces.append(self.training_transform(real_face, random_erasing = True))
-		else:
-			try:
-				# Check that the video was opened successfully
-				if real_video_handle.isOpened() == False:
-					raise CorruptVideoError("cv2.VideoCapture() failed to open {}".format(real_video_path))
-				# Frames from the original video
-				real_frames = opencv_helpers.specific_frames(real_video_handle, frame_numbers)
-				real_video_handle.release()
-				# Retrieve boundingbox information and crop images
-				real_faces = []
-				for i in range(int(self.batch_size/2)):
-					top 	= real_boxes[str(frame_numbers[i])]['0']['top']
-					bottom 	= real_boxes[str(frame_numbers[i])]['0']['bottom']
-					left 	= real_boxes[str(frame_numbers[i])]['0']['left']
-					right 	= real_boxes[str(frame_numbers[i])]['0']['right']
-					real_face = preprocessing.crop_image(real_frames[i], (top, bottom, left, right))
-					real_faces.append(self.training_transform(real_face, random_erasing = True))
-			except CorruptVideoError:
-				real_video_handle.release()
-				# Move the file to a folder for corrupt videos
-				misc.put_file_in_folder(file_path = real_video_path, folder = "bad_samples")
-				raise
-
-		batch = fake_faces + real_faces
-		batch = torch.stack(batch).to(self.device)
+		batch = torch.stack(faces).to(self.device)
 		return batch
 
 
@@ -407,7 +349,7 @@ class BatchGenerator:
 
 		for data_dict in data:
 			if data_dict['type'] == 'images':
-				face = cv2.imread(os.path.join(data_dict['images_path'], '{}.png'.format(data_dict['frame_nr'])))
+				face = cv2.imread(os.path.join(data_dict['images_path'], '{}.png'.format(int(data_dict['frame_nr']))))
 				# preprocessing.show_test_img(face)
 				faces.append(self.training_transform(face, random_erasing = True))
 				# self.show_tensor(face)
@@ -418,17 +360,17 @@ class BatchGenerator:
 					if video_handle.isOpened() == False:
 						raise CorruptVideoError("cv2.VideoCapture() failed to open {}".format(data_dict['video_path']))
 					# Frame from the video
-					frame = opencv_helpers.specific_frames(video_handle, [data_dict['frame_nr']])
+					frame = opencv_helpers.specific_frames(video_handle, [int(data_dict['frame_nr'])])[0]
 					video_handle.release()
 					# Retrieve boundingbox information and crop image
 					boxes = json.load(open(data_dict['boundingbox_path']))
-					top 	= boxes[str(data_dict['frame_nr'])]['0']['top']
-					bottom 	= boxes[str(data_dict['frame_nr'])]['0']['bottom']
-					left 	= boxes[str(data_dict['frame_nr'])]['0']['left']
-					right 	= boxes[str(data_dict['frame_nr'])]['0']['right']
+					top 	= boxes[str(int(data_dict['frame_nr']))]['0']['top']
+					bottom 	= boxes[str(int(data_dict['frame_nr']))]['0']['bottom']
+					left 	= boxes[str(int(data_dict['frame_nr']))]['0']['left']
+					right 	= boxes[str(int(data_dict['frame_nr']))]['0']['right']
 					face = preprocessing.crop_image(frame, (top, bottom, left, right))
 					# preprocessing.show_test_img(face)
-					face = self.training_transform(fake_face, random_erasing = True)
+					face = self.training_transform(face, random_erasing = True)
 					# self.show_tensor(face)
 					faces.append(face)
 				except CorruptVideoError:

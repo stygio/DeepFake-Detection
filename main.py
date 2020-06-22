@@ -60,7 +60,8 @@ if __name__ == '__main__':
 		training_level = 'lower'
 
 		try:
-			net.train(dataset, dataset_path, epochs = 10, batch_size = 14, lr = 0.001, training_level = training_level)
+			net.train(dataset, dataset_path, epochs = 10, batch_size = 14, lr = 0.001, 
+					training_level = training_level, training_type = 'various')
 		except KeyboardInterrupt:
 			print("Execution ended by KeyboardInterrupt.")
 			net.save_model(dataset + '_interrupted', training_level)
