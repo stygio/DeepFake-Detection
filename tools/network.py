@@ -271,13 +271,32 @@ class Network:
 	# 		misc.add_to_log(log_file = epoch_log, log_string = log_string)
 
 
+	def get_data_dict(video_path):
+		# Collecting necessary data samples. 
+		# For some of them the face images may already be extracted to speed up preprocessing.
+		data_dict = {}
+		faces_path = misc.get_images_path(video_path)
+		
+		if os.path.isdir(faces_path):
+			data_dict['type'] = 'images'
+			data_dict['images_path'] = os.path.join(faces_path, '0')
+			data_dict['length'] = max([int(os.path.splitext(x)[0]) for x in os.listdir(data)])
+		else:
+			data_dict['type'] = 'video'
+			data_dict['video_path'] = video_path
+			data_dict['boundingbox_path'] = misc.get_boundingbox_path(video_path)
+			data_dict['length'] = cv2.VideoCapture(video_path).get(7)
+
+		return data_dict
+
+
 	"""
 	Function for training the network
 		dataset    		- choice of dataset to train on
 		dataset_path	- path to dataset on local machine
 	"""
 	def train(self, dataset, dataset_path, epochs = 10, batch_size = 14, 
-			lr = 0.001, momentum = 0.9, training_level = 'classifier'):
+			lr = 0.001, momentum = 0.9, training_level = 'classifier', training_type = 'dual'):
 		
 		# Display network parameter division ratios
 		model_helpers.count_parameters(self.network)
@@ -309,8 +328,14 @@ class Network:
 			{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 1e-4)
 
 		# Get label tensor
-		labels = torch.tensor([0, 1] * int(batch_size/2), 
-				device = self.device, requires_grad = False, dtype = torch.float)
+		if training_type == 'dual':
+			labels = torch.tensor([0]*int(batch_size/2) + [1]*int(batch_size/2) 
+					device = self.device, requires_grad = False, dtype = torch.float)
+		elif training_type == 'various':
+			labels = torch.tensor([0, 1] * int(batch_size/2), 
+					device = self.device, requires_grad = False, dtype = torch.float)
+		else:
+			raise Exception('Invalid training_type.')
 		labels = labels.view(-1,1)
 		
 		# Create log file w/ train/val information per epoch
@@ -341,16 +366,6 @@ class Network:
 			if training_level == 'lower' or 'higher':
 				self.network.unfreeze_higher_level()
 			self.network.unfreeze_classifier()
-			
-			# # Initializing optimizer with appropriate lr
-			# classifier_lr = lr * 0.8**(epoch-1)
-			# higher_level_lr = 1. * classifier_lr
-			# lower_level_lr = 1. * higher_level_lr
-			# optimizer = optim.SGD([
-			# 	{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
-			# 	{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
-			# 	{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}
-			# ], momentum = momentum)
 
 			# Shuffle training_samples and initialize progress bar
 			random.shuffle(training_samples)
@@ -360,39 +375,33 @@ class Network:
 			# Grab samples and run iterations
 			for fake_video_path, real_video_path in progress_bar:
 
-				if len(data) < batch_size:
-					# Collecting necessary data for fake and real samples. 
-					# For some of them the face images may already be extracted to speed up preprocessing.
-					data_dict = {}
+				if training_type == 'dual':
+					fake_dict = self.get_data_dict(fake_video_path)
+					# Calculating step of frames to skip in video (subtract total_epochs to ensure there are enough frames)
+					frame_step = int((fake_dict['length'] - epochs) / int(batch_size / 2))
+					end = epoch + int(batch_size/2) * frame_step + 1
+					# List of frames [epoch:n:end] to be grabbed from the video
+					frame_numbers = list(range(start = epoch, stop = end, step = frame_step))
+					fake_dict['frame_numbers'] = frame_numbers
+					data.append(fake_dict)
 
-					fake_faces_path = misc.get_images_path(fake_video_path)
-					if os.path.isdir(fake_faces_path):
-						data_dict['type'] = 'images'
-						data_dict['images_path'] = os.path.join(fake_faces_path, '0')
-						length = max([int(os.path.splitext(x)[0]) for x in os.listdir(fake_data)])
-					else:
-						data_dict['type'] = 'video'
-						data_dict['video_path'] = fake_video_path
-						data_dict['boundingbox_path'] = misc.get_boundingbox_path(fake_video_path)
-						length = cv2.VideoCapture(fake_video_path).get(7)
-					data_dict['frame_nr'] = (8 * epoch) % length + int(8 * epoch / length)
-					data.append(data_dict)
+					real_dict = self.get_data_dict(real_video_path)
+					frame_step = int((real_dict['length'] - epochs) / int(batch_size / 2))
+					end = epoch + int(batch_size/2) * frame_step + 1
+					frame_numbers = list(range(start = epoch, stop = end, step = frame_step))
+					real_dict['frame_numbers'] = frame_numbers
+					data.append(real_dict)
 
-					real_faces_path = misc.get_images_path(real_video_path)
-					if os.path.isdir(real_faces_path):
-						data_dict['type'] = 'images'
-						data_dict['images_path'] = os.path.join(real_faces_path, '0')
-						length = max([int(os.path.splitext(x)[0]) for x in os.listdir(real_data)])
-					else:
-						data_dict['type'] = 'video'
-						data_dict['video_path'] = real_video_path
-						data_dict['boundingbox_path'] = misc.get_boundingbox_path(real_video_path)
-						length = cv2.VideoCapture(real_video_path).get(7)
-					data_dict['frame_nr'] = (8 * epoch) % length + int(8 * epoch / length)
-					data.append(data_dict)
+				elif training_type == 'various' and len(data) < batch_size:
+					fake_dict = self.get_data_dict(fake_video_path)
+					fake_dict['frame_nr'] = (8 * epoch) % fake_dict['length'] + int(8 * epoch / fake_dict['length'])
+					data.append(fake_dict)
+					real_dict = self.get_data_dict(real_video_path)
+					real_dict['frame_nr'] = (8 * epoch) % real_dict['length'] + int(8 * epoch / real_dict['length'])
+					data.append(real_dict)
 
 				# Only run training for fake videos, with an existing original and a single face
-				if len(data) == batch_size:
+				if training_type == 'dual' or (training_type == 'various' and len(data) == batch_size):
 					# Get batch
 					batch = BG.training_batch_various_videos(data = data)
 					data = []
