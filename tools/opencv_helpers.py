@@ -173,3 +173,6 @@ def extract_faces_from_video(video_path, bb_path, target_folder):
 			face = preprocessing.crop_image(frame, box)
 			image_filename = os.path.join(face_folder, "{0}.png".format(frame_nr))
 			cv2.imwrite(image_filename, face)
+
+			# Only extract the first face
+			break

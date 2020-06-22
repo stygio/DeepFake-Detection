@@ -17,7 +17,8 @@ def extract_faces(dataset):
 		original_sequences = os.path.join(face_forensics_path, 'original_sequences')
 		real_folder = os.path.join(original_sequences, 'c23', 'videos')
 		manipulated_sequences = os.path.join(face_forensics_path, 'manipulated_sequences')
-		fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences)]
+		# fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences)]
+		fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences) if x != 'DeepFakeDetection']
 		fake_folders = [os.path.join(x, 'c23', 'videos') for x in fake_folders]
 		folder_paths = [real_folder] + fake_folders
 	elif dataset == 'kaggle':

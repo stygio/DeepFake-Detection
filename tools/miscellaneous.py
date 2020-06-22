@@ -112,3 +112,52 @@ Get the absolute path to the directory containing extracted faces from a video
 """
 def get_images_path(video_path):
 	return os.path.join(os.path.dirname(video_path), "images", os.path.splitext(os.path.basename(video_path))[0])
+
+"""
+Assemble a list of training samples
+	dataset 	 - name of dataset {faceforensics, kaggle}
+	dataset_path - absolute path to the dataset
+"""
+def get_training_samples(dataset, dataset_path):
+	training_samples = []
+
+	if dataset == 'faceforensics':
+		# List of sorted folders in the faceforensics directory
+		original_sequences = os.path.join(dataset_path, 'original_sequences')
+		real_folder = os.path.join(original_sequences, 'c23', 'videos')
+		manipulated_sequences = os.path.join(dataset_path, 'manipulated_sequences')
+		fake_folders = [os.path.join(manipulated_sequences, x) for x in os.listdir(manipulated_sequences)]
+		fake_folders = [os.path.join(x, 'c23', 'videos') for x in fake_folders]
+		# Collect training samples
+		for folder_path in fake_folders:
+			videos = os.listdir(folder_path)
+			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
+			metadata = os.path.join(folder_path, "metadata.json")
+			metadata = json.load(open(metadata))
+			# Added tuples of fake and corresponding real videos to the training_samples
+			for video in videos:
+				# Check if video is labeled as fake
+				if metadata[video]['split'] == 'train':
+					fake_video_path = os.path.join(folder_path, video)
+					real_video_path = os.path.join(real_folder, metadata[video]['original'])
+					training_samples.append((fake_video_path, real_video_path))
+
+	elif dataset == 'kaggle':
+		# List of sorted folders in the kaggle directory
+		kaggle_folders = [os.path.join(dataset_path, x) for x in os.listdir(dataset_path)]
+		kaggle_folders = sorted(kaggle_folders, key = lambda d: int(d.split('_')[-1]))
+		# Collect training samples
+		for folder_path in kaggle_folders:
+			videos = os.listdir(folder_path)
+			videos = [x for x in videos if x not in ["metadata.json", "bounding_boxes", "bad_samples", "multiple_faces", "images"]]
+			metadata = os.path.join(folder_path, "metadata.json")
+			metadata = json.load(open(metadata))
+			# Added tuples of fake and corresponding real videos to the training_samples
+			for video in videos:
+				# Check if video is labeled as fake
+				if metadata[video]['label'] == 'FAKE' and metadata[video]['split'] == 'train':
+					fake_video_path = os.path.join(folder_path, video)
+					real_video_path = os.path.join(folder_path, metadata[video]['original'])
+					training_samples.append((fake_video_path, real_video_path))
+
+	return training_samples
