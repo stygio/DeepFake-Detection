@@ -23,42 +23,48 @@ def count_parameters(model):
 Function for retrieving a chosen model
 	model_name - which model to choose
 	model_path - model path if a local version should be used
+	pretrained - should it load a model with pretrained weights
 """
-def get_model(model_name, model_path = None):
+def get_model(model_name, model_path = None, pretrained = False):
 	network = None
 
 	if model_name == "xception":
 		if model_path == None:
-			network = Binary_Xception(pretrained = True)
+			network = Binary_Xception(pretrained = pretrained)
 		else:
 			network = Binary_Xception(pretrained = False)
 			network.load_state_dict(load(model_path))
 	
 	elif model_name == "inception_v3":
 		if model_path == None:
-			network = Binary_Inception(pretrained = True)
+			network = Binary_Inception(pretrained = pretrained)
 		else:
 			network = Binary_Inception(pretrained = False)
 			network.load_state_dict(load(model_path))
 	
 	elif model_name == "resnet152":
 		if model_path == None:
-			network = Binary_ResNet152(pretrained = True)
+			network = Binary_ResNet152(pretrained = pretrained)
 		else:
 			network = Binary_ResNet152(pretrained = False)
 			network.load_state_dict(load(model_path))
 	
 	elif model_name == "resnext101":
 		if model_path == None:
-			network = Binary_ResNeXt101(pretrained = True)
+			network = Binary_ResNeXt101(pretrained = pretrained)
 		else:
 			network = Binary_ResNeXt101(pretrained = False)
 			network.load_state_dict(load(model_path))
 	
 	elif model_name == "efficientnet-b5":
-		network = Binary_EfficientNet.from_pretrained(model_name, num_classes = 1)
 		if model_path:
+			network = Binary_EfficientNet.from_name(model_name, {'num_classes': 1})
 			network.load_state_dict(load(model_path))
+		elif pretrained:
+			network = Binary_EfficientNet.from_pretrained(model_name, num_classes = 1)
+		else:
+			network = Binary_EfficientNet.from_name(model_name, {'num_classes': 1})
+
 
 	else:
 		raise Exception("Invalid model chosen.")

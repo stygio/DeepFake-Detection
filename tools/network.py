@@ -20,14 +20,14 @@ from radam.radam import RAdam
 
 class Network:
 
-	def __init__(self, model_name, model_weights_path = None):
+	def __init__(self, model_name, model_weights_path = None, pretrained = False):
 		
 		# Model name
 		self.model_name = model_name
 		# Choose torch device
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# Setup chosen CNN model
-		self.network = model_helpers.get_model(model_name, model_weights_path).to(self.device)
+		self.network = model_helpers.get_model(model_name, model_weights_path, pretrained).to(self.device)
 		# Loss function and optimizer
 		self.criterion = nn.BCEWithLogitsLoss()
 
@@ -106,10 +106,10 @@ class Network:
 		dataset_path	- path to dataset on local machine
 	"""
 	def train(self, dataset, dataset_path, epochs = 10, batch_size = 14, 
-			lr = 0.001, momentum = 0.9, training_level = 'classifier', training_type = 'dual'):
+			lr = 0.001, momentum = 0.9, training_level = 'full', training_type = 'various'):
 		
 		# Display network parameter division ratios
-		model_helpers.count_parameters(self.network)
+		# model_helpers.count_parameters(self.network)
 
 		# Assert the batch_size is even
 		assert batch_size % 2 == 0, "Uneven batch_size: {}".format(batch_size)
@@ -127,15 +127,18 @@ class Network:
 		classifier_lr = lr
 		higher_level_lr = 0.1 * classifier_lr
 		lower_level_lr = 0.1 * higher_level_lr
-		# optimizer = optim.SGD([
-		# 	{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
-		# 	{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
-		# 	{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}
-		# ], momentum = momentum)
-		optimizer = RAdam([
-			{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
-			{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
-			{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 0)
+		if training_level == 'full':
+			optimizer = RAdam(self.network.parameters(), lr = lr, weight_decay = 0)
+		else:
+			optimizer = RAdam([
+				{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
+				{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
+				{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 0)
+		# # optimizer = optim.SGD([
+		# # 	{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
+		# # 	{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
+		# # 	{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}
+		# # ], momentum = momentum)
 
 		# Get label tensor
 		if training_type == 'dual':
@@ -171,11 +174,15 @@ class Network:
 			self.network.train()
 
 			# Unfreezing gradients
+			if training_level == 'full':
+				for param in self.network.parameters():
+					param.requires_grad = True
 			if training_level == 'lower':
 				self.network.unfreeze_lower_level()
 			if training_level == 'lower' or 'higher':
 				self.network.unfreeze_higher_level()
-			self.network.unfreeze_classifier()
+			if training_level == 'lower' or 'higher' or 'classifier':
+				self.network.unfreeze_classifier()
 
 			# Shuffle training_samples and initialize progress bar
 			random.shuffle(training_samples)

@@ -60,7 +60,7 @@ if __name__ == '__main__':
 		training_level = 'lower'
 
 		try:
-			net.train(dataset, dataset_path, epochs = 50, batch_size = 14, lr = 0.001, 
+			net.train(dataset, dataset_path, epochs = 50, batch_size = 12, lr = 0.001, 
 					training_level = training_level, training_type = 'dual')
 		except KeyboardInterrupt:
 			print("Execution ended by KeyboardInterrupt.")
