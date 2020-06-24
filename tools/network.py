@@ -105,11 +105,11 @@ class Network:
 		dataset    		- choice of dataset to train on
 		dataset_path	- path to dataset on local machine
 	"""
-	def train(self, dataset, dataset_path, epochs = 10, batch_size = 14, 
+	def train(self, dataset, dataset_path, epochs = 10, batch_size = 12, 
 			lr = 0.001, momentum = 0.9, training_level = 'full', training_type = 'various'):
 		
 		# Display network parameter division ratios
-		# model_helpers.count_parameters(self.network)
+		model_helpers.count_parameters(self.network)
 
 		# Assert the batch_size is even
 		assert batch_size % 2 == 0, "Uneven batch_size: {}".format(batch_size)
@@ -118,15 +118,15 @@ class Network:
 		# Assert valid dataset patch
 		assert os.path.isdir(dataset_path), "Invalid dataset path: {}".format(dataset_path)
 		# Assert valid training_level
-		assert training_level in ['classifier', 'higher', 'lower'], "Invalid training level choice: {}".format(training_level)
+		assert training_level in ['classifier', 'higher', 'lower', 'full'], "Invalid training level choice: {}".format(training_level)
 		
 		# Creating batch generator
 		BG = BatchGenerator(self.model_name, self.device, batch_size)
 
 		# Initializing optimizer with appropriate lr
 		classifier_lr = lr
-		higher_level_lr = 0.1 * classifier_lr
-		lower_level_lr = 0.1 * higher_level_lr
+		higher_level_lr = 1. * classifier_lr
+		lower_level_lr = 1. * higher_level_lr
 		if training_level == 'full':
 			optimizer = RAdam(self.network.parameters(), lr = lr, weight_decay = 0)
 		else:

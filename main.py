@@ -3,18 +3,6 @@ from os.path import isdir, isfile
 
 from tools.network import Network
 
-# real_vid_dirs = [	"D:\\FaceForensics_Dataset\\original_sequences\\c23\\videos"]
-# fake_vid_dirs = [	"D:\\FaceForensics_Dataset\\manipulated_sequences\\DeepFakeDetection\\c23\\videos",
-# 					"D:\\FaceForensics_Dataset\\manipulated_sequences\\Deepfakes\\c23\\videos",
-# 					"D:\\FaceForensics_Dataset\\manipulated_sequences\\Face2Face\\c23\\videos",
-# 					"D:\\FaceForensics_Dataset\\manipulated_sequences\\FaceSwap\\c23\\videos",
-# 					"D:\\FaceForensics_Dataset\\manipulated_sequences\\NeuralTextures\\c23\\videos",
-# ]
-
-# one_face_vp = "D:\\FaceForensics_Dataset\\original_sequences\\c23\\videos\\000.mp4"
-# no_face_vp = "C:\\Users\\Andrzej\\Videos\\MazeEscape\\Maze1.mp4"
-# two_face_vp = "D:\\FaceForensics_Dataset\\original_sequences\\c23\\videos\\01__walking_and_outside_surprised.mp4"
-
 kaggle_path = "D:\\Kaggle_Dataset"
 ff_path = "D:\\FaceForensics_Dataset"
 
@@ -61,7 +49,7 @@ if __name__ == '__main__':
 
 		try:
 			net.train(dataset, dataset_path, epochs = 50, batch_size = 12, lr = 0.001, 
-					training_level = training_level, training_type = 'dual')
+					training_level = training_level, training_type = 'various')
 		except KeyboardInterrupt:
 			print("Execution ended by KeyboardInterrupt.")
 			net.save_model(dataset + '_interrupted', training_level)
