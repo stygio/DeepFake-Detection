@@ -135,7 +135,7 @@ class Network:
 		optimizer = RAdam([
 			{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
 			{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
-			{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 1e-4)
+			{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 0)
 
 		# Get label tensor
 		if training_type == 'dual':
@@ -151,12 +151,12 @@ class Network:
 		# Create log file w/ train/val information per epoch
 		filename = self.model_name + "_" + dataset + "_"
 		filename += training_level + "_epochs"
-		log_header = "epoch,train_loss,train_acc,val_loss,val_acc\n"
+		log_header = "epoch,train_loss,train_acc,val_loss,val_acc,val_bal_acc\n"
 		epoch_log = misc.create_log(filename, header_string = log_header)
 		# Create log file w/ information from validation runs
 		filename = self.model_name + "_" + dataset + "_"
 		filename += training_level + "_validation"
-		log_header = "Epoch,File,Label,AvgOutput,Loss,Acc\n"
+		log_header = "Epoch,Folder,Video,Label,AvgOutput,Loss,Acc\n"
 		validation_log = misc.create_log(filename, header_string = log_header)
 
 		# Get list of training samples
@@ -204,10 +204,10 @@ class Network:
 
 				elif training_type == 'various' and len(data) < batch_size:
 					fake_dict = self.get_data_dict(fake_video_path)
-					fake_dict['frame_nr'] = (8 * epoch) % fake_dict['length'] + int(8 * epoch / fake_dict['length'])
+					fake_dict['frame_nr'] = (8 * epoch) % (fake_dict['length'] - epochs) + int(8 * epoch / fake_dict['length'])
 					data.append(fake_dict)
 					real_dict = self.get_data_dict(real_video_path)
-					real_dict['frame_nr'] = (8 * epoch) % real_dict['length'] + int(8 * epoch / real_dict['length'])
+					real_dict['frame_nr'] = (8 * epoch) % (real_dict['length'] - epochs) + int(8 * epoch / real_dict['length'])
 					data.append(real_dict)
 
 				# Only run training for fake videos, with an existing original and a single face
@@ -249,14 +249,15 @@ class Network:
 			self.save_model(dataset + "_" + str(epoch) + "_", training_level)
 
 			# Run validation
-			val_dict = self.evaluate(dataset, dataset_path, 'val', batch_size = 5,
+			val_dict = self.evaluate(dataset, dataset_path, 'val', batch_size = 7,
 					val_log_info = (validation_log, epoch))
 			val_loss = val_dict['loss']
 			val_acc = val_dict['acc']
+			val_balanced_acc = val_dict['balanced_acc']
 
 			# Add to epoch log
 			log_string = "{},{:.2f},{:.2f},{:.2f},{:.2f},\n".format(
-						epoch, np.mean(errors), np.mean(accuracies), val_loss, val_acc)
+						epoch, np.mean(errors), np.mean(accuracies), val_loss, val_acc, val_balanced_acc)
 			misc.add_to_log(log_file = epoch_log, log_string = log_string)
 
 
@@ -294,10 +295,10 @@ class Network:
 
 			data_dict = self.get_data_dict(video_path)
 			# Calculating step of frames to skip in video (subtract total_epochs to ensure there are enough frames)
-			frame_step = int((data_dict['length'] - 1) / int(batch_size))
-			end = 1 + int(batch_size - 1) * frame_step + 1
+			frame_step = int((data_dict['length'] - 10) / int(batch_size))
+			end = 10 + int(batch_size - 1) * frame_step + 1
 			# List of frames [epoch:n:end] to be grabbed from the video
-			frame_numbers = list(range(1, end, frame_step))
+			frame_numbers = list(range(10, end, frame_step))
 			data_dict['frame_numbers'] = frame_numbers
 
 			# Get batch
@@ -328,16 +329,19 @@ class Network:
 			progress_bar.set_postfix(postfix_dict, refresh = False)
 
 			# For balanced accuracy calculation
-			output_true.append(1 if label == 'REAL' else 0)
+			output_true.append(label)
 			output_pred.append(1 if avg_output > 0.5 else 0)
 
 			# Log results if val_log_info exists
 			if val_log_info:
 				validation_log_filename, epoch = val_log_info
-				log_string = "{},{},{},{:.2f},{:.2f},{:.2f},\n".format(epoch,video_path, label, avg_output, err, acc)
+				video = os.path.basename(video_path)
+				folder = video_path.split('\\')[-4]
+				log_string = "{},{},{},{},{:.2f},{:.2f},{:.2f},\n".format(epoch, folder, video, label, avg_output, err, acc)
 				misc.add_to_log(log_file = validation_log_filename, log_string = log_string)
 
-		print('Balanced accuracy score: {:.2f}%'.format(balanced_accuracy_score(output_true, output_pred) * 100))
 		torch.cuda.empty_cache()
-		return {'loss': np.mean(overall_err), 'acc': np.mean(overall_acc)}
+		bal_acc = balanced_accuracy_score(output_true, output_pred) * 100
+		print('Balanced accuracy score: {:.2f}%'.format(bal_acc))
+		return {'loss': np.mean(overall_err), 'acc': np.mean(overall_acc), 'balanced_acc': bal_acc}
 
