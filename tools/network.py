@@ -20,7 +20,7 @@ from radam.radam import RAdam
 
 class Network:
 
-	def __init__(self, model_name, model_weights_path = None, pretrained = False):
+	def __init__(self, model_name, model_weights_path = None, pretrained = True):
 		
 		# Model name
 		self.model_name = model_name
@@ -106,7 +106,7 @@ class Network:
 		dataset_path	- path to dataset on local machine
 	"""
 	def train(self, dataset, dataset_path, epochs = 10, batch_size = 12, 
-			lr = 0.001, momentum = 0.9, training_level = 'full', training_type = 'various'):
+			lr = 0.001, momentum = 0.9, training_level = 'classifier', training_type = 'various'):
 		
 		# Display network parameter division ratios
 		model_helpers.count_parameters(self.network)
@@ -139,6 +139,7 @@ class Network:
 		# # 	{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
 		# # 	{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}
 		# # ], momentum = momentum)
+		scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'min', factor = 0.5, patience = 0)
 
 		# Get label tensor
 		if training_type == 'dual':
@@ -261,6 +262,9 @@ class Network:
 			val_loss = val_dict['loss']
 			val_acc = val_dict['acc']
 			val_balanced_acc = val_dict['balanced_acc']
+
+			# Scheduler step
+			scheduler.step(val_loss)
 
 			# Add to epoch log
 			log_string = "{},{:.2f},{:.2f},{:.2f},{:.2f},\n".format(
