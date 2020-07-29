@@ -21,7 +21,7 @@ class Binary_EfficientNet(EfficientNet):
 
     def lower_level_parameters(self):
         ll_parameters = []
-        for block in self._blocks[18:37]:
+        for block in self._blocks[10:37]:
             ll_parameters += list(block.parameters())        
         return ll_parameters
     

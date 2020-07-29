@@ -46,10 +46,11 @@ if __name__ == '__main__':
 		# batch_size 		= int(	input("Batch size (even): "))
 
 		training_level = 'lower'
+		training_type = 'various'
 
 		try:
-			net.train(dataset, dataset_path, epochs = 50, batch_size = 12, lr = 0.001, 
-					training_level = training_level, training_type = 'various')
+			net.train(dataset, dataset_path, epochs = 30, batch_size = 12, lr = 0.001, 
+					training_level = training_level, training_type = training_type)
 		except KeyboardInterrupt:
 			print("Execution ended by KeyboardInterrupt.")
 			net.save_model(dataset + '_interrupted', training_level)

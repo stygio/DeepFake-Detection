@@ -59,8 +59,9 @@ class BatchGenerator:
 				for frame_nr in data_dict['frame_numbers']:
 					face = cv2.imread(os.path.join(data_dict['images_path'], '{}.png'.format(frame_nr)))
 					# preprocessing.show_test_img(face)
-					faces.append(self.training_transform(face, random_erasing = True))
+					face = self.training_transform(face, random_erasing = True)
 					# self.show_tensor(face)
+					faces.append(face)
 			else:
 				try:
 					video_handle = cv2.VideoCapture(data_dict['video_path'])
@@ -105,8 +106,9 @@ class BatchGenerator:
 			if data_dict['type'] == 'images':
 				face = cv2.imread(os.path.join(data_dict['images_path'], '{}.png'.format(int(data_dict['frame_nr']))))
 				# preprocessing.show_test_img(face)
-				faces.append(self.training_transform(face, random_erasing = True))
+				face = self.training_transform(face, random_erasing = True)
 				# self.show_tensor(face)
+				faces.append(face)
 			else:
 				try:
 					video_handle = cv2.VideoCapture(data_dict['video_path'])

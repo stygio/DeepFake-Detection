@@ -44,7 +44,10 @@ class Binary_Inception(Inception3):
         ll_parameters += list(self.Mixed_6d.parameters())
         ll_parameters += list(self.Mixed_6c.parameters())
         ll_parameters += list(self.Mixed_6b.parameters())
-        ll_parameters += list(self.Mixed_6a.parameters())        
+        ll_parameters += list(self.Mixed_6a.parameters())   
+        ll_parameters += list(self.Mixed_5d.parameters())
+        ll_parameters += list(self.Mixed_5c.parameters())
+        ll_parameters += list(self.Mixed_5b.parameters())     
         return ll_parameters
     
     def unfreeze_classifier(self):
