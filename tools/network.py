@@ -128,21 +128,21 @@ class Network:
 		higher_level_lr = 1. * classifier_lr
 		lower_level_lr = 1. * higher_level_lr
 		if training_level == 'full':
-			# optimizer = RAdam(self.network.parameters(), lr = lr, weight_decay = 0)
-			optimizer = optim.SGD(self.network.parameters(), lr = lr, momentum = momentum)
+			optimizer = RAdam(self.network.parameters(), lr = lr, weight_decay = 0)
+			# optimizer = optim.SGD(self.network.parameters(), lr = lr, momentum = momentum)
 		else:
-			# optimizer = RAdam([
-			# 	{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
-			# 	{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
-			# 	{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 0)
-			optimizer = optim.SGD([
+			optimizer = RAdam([
 				{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
 				{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
-				{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], momentum = momentum)
+				{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 0)
+			# optimizer = optim.SGD([
+			# 	{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
+			# 	{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
+			# 	{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], momentum = momentum)
 		scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'min', factor = 0.5, 
-			patience = 3 if training_type == 'various' else 0)
+			patience = 2 if training_type == 'various' else 0)
 		# scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'max', factor = 0.5, 
-		# 	patience = 3 if training_type == 'various' else 0)
+		# 	patience = 2 if training_type == 'various' else 0)
 
 		# Get label tensor
 		if training_type == 'dual':
