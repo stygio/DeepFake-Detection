@@ -12,10 +12,14 @@ data_augmentation = transforms.RandomOrder([
 random_erasing = transforms.Compose([transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3))])
 
 model_transforms = {
+    'mini_inception': transforms.Compose([
+        transforms.Resize((299, 299)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ]),
     'xception': transforms.Compose([
         transforms.Resize((299, 299)),
         transforms.ToTensor(),
-        # transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
     'inception_v3': transforms.Compose([

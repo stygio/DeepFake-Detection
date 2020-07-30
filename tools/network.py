@@ -129,7 +129,7 @@ class Network:
 		lower_level_lr = 1. * higher_level_lr
 		if training_level == 'full':
 			# optimizer = RAdam(self.network.parameters(), lr = lr, weight_decay = 0)
-			optimizer = SGD(self.network.parameters(), lr = lr, momentum = momentum)
+			optimizer = optim.SGD(self.network.parameters(), lr = lr, momentum = momentum)
 		else:
 			# optimizer = RAdam([
 			# 	{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
