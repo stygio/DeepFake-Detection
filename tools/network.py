@@ -139,8 +139,12 @@ class Network:
 			# 	{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
 			# 	{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
 			# 	{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], momentum = momentum)
-		scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'min', factor = 0.5, 
-			patience = 2 if training_type == 'various' else 0)
+		
+		# LR Schedulers
+		# Reduce lr by factor of 0.94 every 2 epochs
+		scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = 2, gamma = 0.94)
+		# scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'min', factor = 0.5, 
+		# 	patience = 2 if training_type == 'various' else 0)
 		# scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'max', factor = 0.5, 
 		# 	patience = 2 if training_type == 'various' else 0)
 
@@ -267,7 +271,8 @@ class Network:
 			val_balanced_acc = val_dict['balanced_acc']
 
 			# Scheduler step
-			scheduler.step(val_loss)
+			scheduler.step()
+			# scheduler.step(val_loss)
 			# scheduler.step(val_balanced_acc)
 
 			# Add to epoch log

@@ -19,7 +19,7 @@ InceptionOutputs.__annotations__ = {'logits': torch.Tensor}
 _InceptionOutputs = InceptionOutputs
 
 
-scale_factor = .5
+scale_factor = 1
 
 class MiniInception(nn.Module):
 
