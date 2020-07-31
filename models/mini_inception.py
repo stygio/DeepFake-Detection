@@ -6,28 +6,14 @@ import torch.nn.functional as F
 from torch.jit.annotations import Optional
 from torch import Tensor
 
-model_urls = {
-	# Inception v3 ported from TensorFlow
-	'inception_v3_google': 'https://download.pytorch.org/models/inception_v3_google-1a9a5a14.pth',
-}
-
-InceptionOutputs = namedtuple('InceptionOutputs', ['logits'])
-InceptionOutputs.__annotations__ = {'logits': torch.Tensor}
-
-# Script annotations failed with _GoogleNetOutputs = namedtuple ...
-# _InceptionOutputs set here for backwards compat
-_InceptionOutputs = InceptionOutputs
-
-
 scale_factor = 1
 
 class MiniInception(nn.Module):
 
-	def __init__(self, num_classes=1, transform_input=False, init_weights=True):
+	def __init__(self, num_classes=1, init_weights=True):
 		super(MiniInception, self).__init__()
 
 		conv_block = BasicConv2d
-		self.transform_input = transform_input
 		self.Conv2d_1a_3x3 = conv_block(3, int(32*scale_factor), kernel_size=3, stride=2)
 		self.Conv2d_2a_3x3 = conv_block(int(32*scale_factor), int(32*scale_factor), kernel_size=3)
 		self.Conv2d_2b_3x3 = conv_block(int(32*scale_factor), int(64*scale_factor), kernel_size=3, padding=1)
@@ -49,26 +35,21 @@ class MiniInception(nn.Module):
 		if init_weights:
 			for m in self.modules():
 				if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-					import scipy.stats as stats
-					stddev = m.stddev if hasattr(m, 'stddev') else 0.1
-					X = stats.truncnorm(-2, 2, scale=stddev)
-					values = torch.as_tensor(X.rvs(m.weight.numel()), dtype=m.weight.dtype)
-					values = values.view(m.weight.size())
-					with torch.no_grad():
-						m.weight.copy_(values)
+					# import scipy.stats as stats
+					# stddev = m.stddev if hasattr(m, 'stddev') else 0.1
+					# X = stats.truncnorm(-2, 2, scale=stddev)
+					# values = torch.as_tensor(X.rvs(m.weight.numel()), dtype=m.weight.dtype)
+					# values = values.view(m.weight.size())
+					# with torch.no_grad():
+					# 	m.weight.copy_(values)
+
+					# Xavier Initialization
+					nn.init.xavier_normal_(m.weight)
 				elif isinstance(m, nn.BatchNorm2d):
 					nn.init.constant_(m.weight, 1)
 					nn.init.constant_(m.bias, 0)
 
-	def _transform_input(self, x):
-		if self.transform_input:
-			x_ch0 = torch.unsqueeze(x[:, 0], 1) * (0.229 / 0.5) + (0.485 - 0.5) / 0.5
-			x_ch1 = torch.unsqueeze(x[:, 1], 1) * (0.224 / 0.5) + (0.456 - 0.5) / 0.5
-			x_ch2 = torch.unsqueeze(x[:, 2], 1) * (0.225 / 0.5) + (0.406 - 0.5) / 0.5
-			x = torch.cat((x_ch0, x_ch1, x_ch2), 1)
-		return x
-
-	def _forward(self, x):
+	def forward(self, x):
 		# N x 3 x 299 x 299
 		x = self.Conv2d_1a_3x3(x)
 		# N x 32 x 149 x 149
@@ -109,25 +90,13 @@ class MiniInception(nn.Module):
 		# Adaptive average pooling
 		x = F.adaptive_avg_pool2d(x, (1, 1))
 		# N x 2048 x 1 x 1
-		x = F.dropout(x, training=self.training)
-		# N x 2048 x 1 x 1
 		x = torch.flatten(x, 1)
+		# N x 2048 x 1 x 1
+		x = F.dropout(x, p = 0.2, training=self.training)
 		# N x 2048
 		x = self.fc(x)
 		# N x 1 (num_classes)
 		return x
-
-	@torch.jit.unused
-	def eager_outputs(self, x):
-		return x
-
-	def forward(self, x):
-		x = self._transform_input(x)
-		x = self._forward(x)
-		if torch.jit.is_scripting():
-			return InceptionOutputs(x)
-		else:
-			return self.eager_outputs(x)
 
 	def classifier_parameters(self):
 		return self.fc.parameters()
@@ -392,4 +361,4 @@ class BasicConv2d(nn.Module):
 	def forward(self, x):
 		x = self.conv(x)
 		x = self.bn(x)
-		return F.relu(x, inplace=True)
+		return F.relu(x, inplace = True)

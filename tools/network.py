@@ -57,20 +57,32 @@ class Network:
 	def plot_grad_flow(self):
 
 		named_parameters = self.network.named_parameters()
-		ave_grads = []
-		max_grads= []
 		layers = []
+		ave_grads = {}
+		max_grads= {}
 		for n, p in named_parameters:
 			if(p.requires_grad) and ("bias" not in n):
-				layers.append(n)
-				ave_grads.append(p.grad.abs().mean())
-				max_grads.append(p.grad.abs().max())
+				# layers.append(n)
+				# ave_grads.append(p.grad.abs().mean())
+				# max_grads.append(p.grad.abs().max())
+				layer = n.split('.')[0]
+				if layer not in layers:
+					layers.append(layer)
+					ave_grads[layer] = [p.grad.abs().mean().cpu().detach().numpy()]
+					max_grads[layer] = [p.grad.abs().max().cpu().detach().numpy()]
+				else:
+					ave_grads[layer].append(p.grad.abs().mean().cpu().detach().numpy())
+					max_grads[layer].append(p.grad.abs().max().cpu().detach().numpy())
+
+		ave_grads = [np.mean(layer_ave_grads) for layer_ave_grads in ave_grads.values()]
+		max_grads = [np.max(layer_max_grads) for layer_max_grads in max_grads.values()]
+
 		plt.bar(np.arange(len(max_grads)), max_grads, alpha=0.1, lw=1, color="c")
 		plt.bar(np.arange(len(max_grads)), ave_grads, alpha=0.1, lw=1, color="b")
 		plt.hlines(0, 0, len(ave_grads)+1, lw=2, color="k" )
 		plt.xticks(range(0,len(ave_grads), 1), layers, rotation="vertical")
 		plt.xlim(left=0, right=len(ave_grads))
-		plt.ylim(bottom = -0.001, top=0.02) # zoom in on the lower gradient regions
+		# plt.ylim(bottom = -0.001, top=0.02) # zoom in on the lower gradient regions
 		plt.xlabel("Layers")
 		plt.ylabel("average gradient")
 		plt.title("Gradient flow")
@@ -78,6 +90,7 @@ class Network:
 		plt.legend([lines.Line2D([0], [0], color="c", lw=4),
 					lines.Line2D([0], [0], color="b", lw=4),
 					lines.Line2D([0], [0], color="k", lw=4)], ['max-gradient', 'mean-gradient', 'zero-gradient'])
+		plt.tight_layout()
 		plt.show()
 
 
@@ -106,7 +119,7 @@ class Network:
 		dataset_path	- path to dataset on local machine
 	"""
 	def train(self, dataset, dataset_path, epochs = 10, batch_size = 12, 
-			lr = 0.001, momentum = 0.9, training_level = 'classifier', training_type = 'various'):
+			lr = 0.001, momentum = 0.9, training_level = 'full', training_type = 'various'):
 		
 		# Display network parameter division ratios
 		model_helpers.count_parameters(self.network)
@@ -128,13 +141,13 @@ class Network:
 		higher_level_lr = 1. * classifier_lr
 		lower_level_lr = 1. * higher_level_lr
 		if training_level == 'full':
-			optimizer = RAdam(self.network.parameters(), lr = lr, weight_decay = 0)
+			optimizer = RAdam(self.network.parameters(), lr = lr, weight_decay = 4e-5)
 			# optimizer = optim.SGD(self.network.parameters(), lr = lr, momentum = momentum)
 		else:
 			optimizer = RAdam([
 				{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
 				{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
-				{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 0)
+				{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 4e-5)
 			# optimizer = optim.SGD([
 			# 	{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
 			# 	{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
@@ -239,7 +252,6 @@ class Network:
 					# Compute loss and do backpropagation
 					err = self.criterion(output, labels)
 					err.backward()
-					# self.plot_grad_flow()
 					# Optimizer step applying gradients from results
 					optimizer.step()
 
@@ -257,6 +269,8 @@ class Network:
 					# Refresh tqdm postfix
 					postfix_dict = {'loss': round(np.mean(errors), 2), 'acc': round(np.mean(accuracies), 2)}
 					progress_bar.set_postfix(postfix_dict, refresh = False)
+
+			self.plot_grad_flow()
 
 			# Clean CUDA cache
 			torch.cuda.empty_cache()
