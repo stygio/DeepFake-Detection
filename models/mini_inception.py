@@ -44,7 +44,7 @@ class MiniInception(nn.Module):
 					# 	m.weight.copy_(values)
 
 					# Xavier Initialization
-					nn.init.xavier_normal_(m.weight)
+					nn.init.xavier_normal_(m.weight, gain=nn.init.calculate_gain('leaky_relu', 0.2))
 				elif isinstance(m, nn.BatchNorm2d):
 					nn.init.constant_(m.weight, 1)
 					nn.init.constant_(m.bias, 0)
@@ -361,4 +361,4 @@ class BasicConv2d(nn.Module):
 	def forward(self, x):
 		x = self.conv(x)
 		x = self.bn(x)
-		return F.relu(x, inplace = True)
+		return F.leaky_relu(x, negative_slope = 0.2, inplace = True)
