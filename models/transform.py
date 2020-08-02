@@ -12,6 +12,11 @@ data_augmentation = transforms.RandomOrder([
 random_erasing = transforms.Compose([transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3))])
 
 model_transforms = {
+    'reseption': transforms.Compose([
+        transforms.Resize((299, 299)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
+    ]),
     'mini_inception': transforms.Compose([
         transforms.Resize((299, 299)),
         transforms.ToTensor(),

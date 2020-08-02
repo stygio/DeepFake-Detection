@@ -6,6 +6,7 @@ from models.resnet152 import Binary_ResNet152
 from models.resnext101 import Binary_ResNeXt101
 from models.efficientnet import Binary_EfficientNet
 from models.mini_inception import MiniInception
+from models.reseption import Reseption
 
 """
 Display network parameter counts in ratios of total parameters in the model
@@ -29,7 +30,14 @@ Function for retrieving a chosen model
 def get_model(model_name, model_path = None, pretrained = False):
 	network = None
 
-	if model_name == "mini_inception":
+	if model_name == "reseption":
+		if model_path == None:
+			network = Reseption()
+		else:
+			network = Reseption(init_weights = False)
+			network.load_state_dict(load(model_path))
+
+	elif model_name == "mini_inception":
 		if model_path == None:
 			network = MiniInception()
 		else:

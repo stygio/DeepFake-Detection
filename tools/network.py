@@ -99,6 +99,7 @@ class Network:
 		ave_grads = [np.mean(layer_ave_grads) for layer_ave_grads in self.ave_grads.values()]
 		max_grads = [np.max(layer_max_grads) for layer_max_grads in self.max_grads.values()]
 
+		plt.figure()
 		plt.bar(np.arange(len(max_grads)), max_grads, alpha=0.1, lw=1, color="c")
 		plt.bar(np.arange(len(ave_grads)), ave_grads, alpha=0.1, lw=1, color="b")
 		plt.hlines(0, 0, len(ave_grads)+1, lw=2, color="k" )
@@ -118,6 +119,7 @@ class Network:
 		plt.savefig(filename, format = 'png')
 		if show:
 			plt.show()
+		plt.close()
 
 
 	def get_data_dict(self, video_path):
@@ -233,7 +235,7 @@ class Network:
 				self.network.unfreeze_classifier()
 
 			# Register hooks for gaussian noise addition & gradient clipping
-			self.register_hooks(epoch)
+			# self.register_hooks(epoch)
 
 			# Shuffle training_samples and initialize progress bar
 			random.shuffle(training_samples)
