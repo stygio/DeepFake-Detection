@@ -1,10 +1,11 @@
 import math
+from numpy.random import normal
 import torch
 from torch.optim.optimizer import Optimizer, required
 
 class RAdam(Optimizer):
 
-    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0, degenerated_to_sgd=True):
+    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0, degenerated_to_sgd=True, gradient_noise_addition=False):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= eps:
@@ -15,6 +16,7 @@ class RAdam(Optimizer):
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
         
         self.degenerated_to_sgd = degenerated_to_sgd
+        self.gradient_noise_addition = gradient_noise_addition
         if isinstance(params, (list, tuple)) and len(params) > 0 and isinstance(params[0], dict):
             for param in params:
                 if 'betas' in param and (param['betas'][0] != betas[0] or param['betas'][1] != betas[1]):
@@ -54,6 +56,12 @@ class RAdam(Optimizer):
 
                 exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
                 beta1, beta2 = group['betas']
+                
+                if self.gradient_noise_addition:
+                    gn_mean = 0.
+                    gn_stddev = 0.1 / ((1 + state['step'])**0.55)
+                    gradient_noise = normal(gn_mean, gn_stddev)
+                    grad.add_(gradient_noise)
 
                 # exp_avg_sq.mul_(beta2).addcmul_(1 - beta2, grad, grad)
                 # A.P. - Changed due to:

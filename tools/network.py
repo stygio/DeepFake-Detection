@@ -58,6 +58,20 @@ class Network:
 		print("Saving network as '{}'".format(filename))
 		torch.save(self.network.state_dict(), filename)
 
+
+	# Gradient noise addition & gradient clipping hooks
+	def register_hooks(self, epoch):
+		# gn_mean = torch.Tensor([0.]).to(self.device)
+		# gn_stddev = torch.Tensor([0.1 / ((1 + epoch)**0.55)]).to(self.device)
+		# gradient_noise = torch.distributions.Normal(gn_mean, gn_stddev)
+
+		named_parameters = self.network.named_parameters()
+		for n, p in named_parameters:
+			if p.requires_grad:
+				# p.register_hook(lambda grad: grad + gradient_noise.sample()[0])
+				p.register_hook(lambda grad: torch.clamp(grad, -2, 2))
+
+
 	# Resets ave_grads and max_grads
 	def reset_grad_flow_dicts(self):
 		self.ave_grads = {}
@@ -81,24 +95,29 @@ class Network:
 	Plots the gradients flowing through different layers in the net during training.
 	Can be used for checking for possible gradient vanishing / exploding problems.
 	"""
-	def plot_grad_flow(self):
+	def plot_grad_flow(self, show = False):
 		ave_grads = [np.mean(layer_ave_grads) for layer_ave_grads in self.ave_grads.values()]
 		max_grads = [np.max(layer_max_grads) for layer_max_grads in self.max_grads.values()]
 
 		plt.bar(np.arange(len(max_grads)), max_grads, alpha=0.1, lw=1, color="c")
-		plt.bar(np.arange(len(max_grads)), ave_grads, alpha=0.1, lw=1, color="b")
+		plt.bar(np.arange(len(ave_grads)), ave_grads, alpha=0.1, lw=1, color="b")
 		plt.hlines(0, 0, len(ave_grads)+1, lw=2, color="k" )
 		plt.xticks(range(0,len(ave_grads), 1), self.layers, rotation="vertical")
 		plt.xlim(left=-1, right=len(ave_grads))
+		plt.ylim(bottom=0, top=0.5)
 		plt.xlabel("Layers")
-		plt.ylabel("average gradient")
-		plt.title("Gradient flow")
+		plt.ylabel("Gradient Value")
+		plt.title("Gradient Flow")
 		plt.grid(True)
 		plt.legend([lines.Line2D([0], [0], color="c", lw=4),
-					lines.Line2D([0], [0], color="b", lw=4),
-					lines.Line2D([0], [0], color="k", lw=4)], ['max-gradient', 'mean-gradient', 'zero-gradient'])
+					lines.Line2D([0], [0], color="b", lw=4)], ['max-gradient', 'mean-gradient'])
+		
 		plt.tight_layout()
-		plt.show()
+		filename = self.model_name + misc.timestamp() + '.png'
+		filename = os.path.join('outputs', 'gradient_plots', filename)
+		plt.savefig(filename, format = 'png')
+		if show:
+			plt.show()
 
 
 	def get_data_dict(self, video_path):
@@ -148,13 +167,13 @@ class Network:
 		higher_level_lr = 1. * classifier_lr
 		lower_level_lr = 1. * higher_level_lr
 		if training_level == 'full':
-			optimizer = RAdam(self.network.parameters(), lr = lr, weight_decay = 4e-5)
-			# optimizer = optim.SGD(self.network.parameters(), lr = lr, momentum = momentum)
+			optimizer = RAdam(self.network.parameters(), lr = lr, weight_decay = 4e-5, gradient_noise_addition = False)
+			# optimizer = optim.SGD(self.network.parameters(), lr = lr, momentum = momentum, weight_decay = 0)
 		else:
 			optimizer = RAdam([
 				{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
 				{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
-				{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 4e-5)
+				{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 4e-5, gradient_noise_addition = False)
 			# optimizer = optim.SGD([
 			# 	{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
 			# 	{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
@@ -213,6 +232,9 @@ class Network:
 			if training_level == 'lower' or 'higher' or 'classifier':
 				self.network.unfreeze_classifier()
 
+			# Register hooks for gaussian noise addition & gradient clipping
+			self.register_hooks(epoch)
+
 			# Shuffle training_samples and initialize progress bar
 			random.shuffle(training_samples)
 			progress_bar = tqdm(training_samples, desc = "epoch {}".format(epoch))
@@ -255,7 +277,8 @@ class Network:
 						batch = BG.single_frame_per_video(data = data)
 					data = []
 
-					self.network.zero_grad()
+					# self.network.zero_grad()
+					optimizer.zero_grad()
 					output = self.network(batch.detach())
 					# Compute loss and do backpropagation
 					err = self.criterion(output, labels)
@@ -264,6 +287,7 @@ class Network:
 					optimizer.step()
 
 					self.record_grad_flow()
+					# self.plot_grad_flow()
 
 					# Get loss
 					err = err.item()
