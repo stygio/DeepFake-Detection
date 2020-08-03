@@ -49,7 +49,7 @@ if __name__ == '__main__':
 		training_type = 'various'
 
 		try:
-			net.train(dataset, dataset_path, epochs = 50, batch_size = 24, lr = 0.045, 
+			net.train(dataset, dataset_path, epochs = 50, batch_size = 24, lr = 0.01, 
 					training_level = training_level, training_type = training_type)
 		except KeyboardInterrupt:
 			print("Execution ended by KeyboardInterrupt.")

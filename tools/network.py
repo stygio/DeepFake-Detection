@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.cuda.amp import GradScaler
 
 import os
 import json
@@ -61,14 +62,14 @@ class Network:
 
 	# Gradient noise addition & gradient clipping hooks
 	def register_hooks(self, epoch):
-		# gn_mean = torch.Tensor([0.]).to(self.device)
-		# gn_stddev = torch.Tensor([0.1 / ((1 + epoch)**0.55)]).to(self.device)
-		# gradient_noise = torch.distributions.Normal(gn_mean, gn_stddev)
+		gn_mean = torch.Tensor([0.]).to(self.device)
+		gn_stddev = torch.Tensor([0.1 / ((1 + epoch)**0.55)]).to(self.device)
+		gradient_noise = torch.distributions.Normal(gn_mean, gn_stddev)
 
 		named_parameters = self.network.named_parameters()
 		for n, p in named_parameters:
 			if p.requires_grad:
-				# p.register_hook(lambda grad: grad + gradient_noise.sample()[0])
+				p.register_hook(lambda grad: grad + gradient_noise.sample()[0])
 				p.register_hook(lambda grad: torch.clamp(grad, -2, 2))
 
 
@@ -105,7 +106,7 @@ class Network:
 		plt.hlines(0, 0, len(ave_grads)+1, lw=2, color="k" )
 		plt.xticks(range(0,len(ave_grads), 1), self.layers, rotation="vertical")
 		plt.xlim(left=-1, right=len(ave_grads))
-		plt.ylim(bottom=0, top=0.5)
+		plt.ylim(bottom=0, top=0.2)
 		plt.xlabel("Layers")
 		plt.ylabel("Gradient Value")
 		plt.title("Gradient Flow")
@@ -183,11 +184,15 @@ class Network:
 		
 		# LR Schedulers
 		# Reduce lr by factor of 0.94 every 2 epochs
-		scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = 2, gamma = 0.94)
-		# scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'min', factor = 0.5, 
-		# 	patience = 2 if training_type == 'various' else 0)
+		scheduler_StepLR = optim.lr_scheduler.StepLR(optimizer, step_size = 2, gamma = 0.94)
+		# Reduce lr by factor of 0.5 if loss doesn't improve
+		scheduler_Plateau = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'min', factor = 0.5, 
+			patience = 1 if training_type == 'various' else 0)
+		# Reduce lr by factor of 0.5 if balanced accuracy doesn't improve
 		# scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'max', factor = 0.5, 
 		# 	patience = 2 if training_type == 'various' else 0)
+
+		scaler = GradScaler()
 
 		# Get label tensor
 		if training_type == 'dual':
@@ -284,9 +289,12 @@ class Network:
 					output = self.network(batch.detach())
 					# Compute loss and do backpropagation
 					err = self.criterion(output, labels)
-					err.backward()
+					# err.backward()
+					scaler.scale(err).backward()
 					# Optimizer step applying gradients from results
-					optimizer.step()
+					# optimizer.step()
+					scaler.step(optimizer)
+					scaler.update()
 
 					self.record_grad_flow()
 					# self.plot_grad_flow()
@@ -321,9 +329,8 @@ class Network:
 			val_balanced_acc = val_dict['balanced_acc']
 
 			# Scheduler step
-			scheduler.step()
-			# scheduler.step(val_loss)
-			# scheduler.step(val_balanced_acc)
+			scheduler_StepLR.step()
+			scheduler_Plateau.step(val_loss)
 
 			# Add to epoch log
 			log_string = "{},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},\n".format(
