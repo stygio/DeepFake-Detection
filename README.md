@@ -2,19 +2,19 @@
 
 Repository for work on my Master's Thesis project. The goal is to examine state-of-the-art methods for face swap detection and look to develop something new and possibly better.
 
+After conducting a review of some state-of-the-art models on the face manipulation detection task, I found the best performers to be ResNeXt101_32x8d and InceptionV3. The details can be found in my master's thesis. Based on this research, I proposed my own models - Reseption V1 and Reseption V2, which are smaller models based on a combination of residual connections and inception modules.
+
 # Project Contents
 
 * models/ - definitions for different types of pytorch models to be tested
 
 * tools/ - module of tools/functions created for the purpose of the project
 
-* unit_tests/ - tests for various implemented functions, which can be run after navigating to the directory (Currently broken)
-
 * outputs/ - various outputs such as logs, graphs, etc.
 
 # ToDo:
 
-* Normalize inputs, learning rate?
+* Classification mode
 
 # Dependcies:
 
