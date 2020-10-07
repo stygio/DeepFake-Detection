@@ -37,9 +37,9 @@ class BatchGenerator:
 		# Convert to numpy array
 		image = np.moveaxis(tensor.cpu().detach().numpy(), 0, -1)
 		# Denormalize from normalized tensor
-		image[:,:,0] = image[:,:,0] * 0.229 + 0.485
-		image[:,:,1] = image[:,:,1] * 0.224 + 0.456
-		image[:,:,2] = image[:,:,2] * 0.225 + 0.406
+		image[:,:,0] = image[:,:,0] * 0.5 + 0.5
+		image[:,:,1] = image[:,:,1] * 0.5 + 0.5
+		image[:,:,2] = image[:,:,2] * 0.5 + 0.5
 		cv2.imshow("tensor", image)
 		cv2.waitKey(0)
 		cv2.destroyAllWindows()
@@ -51,7 +51,7 @@ class BatchGenerator:
 		fake_video_path	- path to the altered video
 		real_video_path	- path to the original video the fake is based on
 	"""
-	def multiple_frames_per_video(self, data):
+	def multiple_frames_per_video(self, data, mode):
 		faces = []
 
 		for data_dict in data:
@@ -59,7 +59,7 @@ class BatchGenerator:
 				for frame_nr in data_dict['frame_numbers']:
 					face = cv2.imread(os.path.join(data_dict['images_path'], '{}.png'.format(frame_nr)))
 					# preprocessing.show_test_img(face)
-					face = self.training_transform(face, random_erasing = True)
+					face = self.training_transform(face, random_erasing = True) if mode == 'train' else self.evaluation_transform(face)
 					# self.show_tensor(face)
 					faces.append(face)
 			else:
@@ -80,7 +80,7 @@ class BatchGenerator:
 						right 	= boxes[str(frame_nr)]['0']['right']
 						face = preprocessing.crop_image(frames[i], (top, bottom, left, right))
 						# preprocessing.show_test_img(face)
-						face = self.training_transform(face, random_erasing = True)
+						face = self.training_transform(face, random_erasing = True) if mode == 'train' else self.evaluation_transform(face)
 						# self.show_tensor(face)
 						faces.append(face)
 				except CorruptVideoError:

@@ -8,3 +8,4 @@ outputs/*
 venv/
 test.py
 move_files_back.py
+rerun_sota_val.py

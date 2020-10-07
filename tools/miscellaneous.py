@@ -138,7 +138,7 @@ def get_training_samples(dataset, dataset_path):
 			metadata = json.load(open(metadata))
 			# Added tuples of fake and corresponding real videos to the training_samples
 			for video in videos:
-				# Check if video is labeled as fake
+				# Check if video is in the train split
 				if metadata[video]['split'] == 'train':
 					fake_video_path = os.path.join(folder_path, video)
 					real_video_path = os.path.join(real_folder, metadata[video]['original'])
@@ -160,7 +160,10 @@ def get_training_samples(dataset, dataset_path):
 				if metadata[video]['label'] == 'FAKE' and metadata[video]['split'] == 'train':
 					fake_video_path = os.path.join(folder_path, video)
 					real_video_path = os.path.join(folder_path, metadata[video]['original'])
-					training_samples.append((fake_video_path, real_video_path))
+					# Check for multiple faces flag
+					bb_dict = json.load(open(get_boundingbox_path(real_video_path)))
+					if bb_dict['multiple_faces'] == False:
+						training_samples.append((fake_video_path, real_video_path))
 
 	return training_samples
 
@@ -218,6 +221,9 @@ def get_evaluation_samples(dataset, dataset_path, split):
 				# Check if video belongs to the correct dataset split
 				if metadata[video]['split'] == split:
 					video_path = os.path.join(folder_path, video)
-					evaluation_samples.append((video_path, metadata[video]['label']))
+					# Check for multiple faces flag
+					bb_dict = json.load(open(get_boundingbox_path(video_path)))
+					if bb_dict['multiple_faces'] == False:
+						evaluation_samples.append((video_path, metadata[video]['label']))
 
 	return evaluation_samples

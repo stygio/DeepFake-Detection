@@ -56,7 +56,7 @@ def initialize_mobilenet(gpu_allocation = 0.4):
 
 def get_mobilenet_faces(images, mobilenet_score_threshold = 0.35):
 	if len(np.shape(images)) == 3:
-		images = [images]
+		images = np.array([images])
 	(im_height,im_width)=images.shape[1:-1]
 	imgs=np.array(images)
 	
@@ -110,7 +110,7 @@ def get_faces(img):
 	
 	# Acquire face_locations, which is a list of tuples with locations
 	# of bounding boxes specified as (top, bottom, left, right)
-	face_locations = get_mobilenet_faces(rgb_img)
+	face_locations = get_mobilenet_faces(rgb_img)[0]
 
 	faces = []
 	face_positions = []

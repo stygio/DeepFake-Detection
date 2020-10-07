@@ -1,13 +1,5 @@
 from torch import load
 
-from models.xception import Binary_Xception
-from models.inception_v3 import Binary_Inception
-from models.resnet152 import Binary_ResNet152
-from models.resnext101 import Binary_ResNeXt101
-from models.efficientnet import Binary_EfficientNet
-from models.mini_inception import MiniInception
-from models.reseption import Reseption
-
 """
 Display network parameter counts in ratios of total parameters in the model
 	model - pytorch model to be checked
@@ -30,14 +22,32 @@ Function for retrieving a chosen model
 def get_model(model_name, model_path = None, pretrained = False):
 	network = None
 
-	if model_name == "reseption":
+	if model_name == "reseption_v1":
+		from models.reseption_v1 import Reseption1
 		if model_path == None:
-			network = Reseption()
+			network = Reseption1()
 		else:
-			network = Reseption(init_weights = False)
+			network = Reseption1(init_weights = False)
+			network.load_state_dict(load(model_path))
+
+	elif model_name == "reseption_v2":
+		from models.reseption_v2 import Reseption2
+		if model_path == None:
+			network = Reseption2()
+		else:
+			network = Reseption2(init_weights = False)
+			network.load_state_dict(load(model_path))
+
+	elif model_name == "reseption_ensemble":
+		from models.reseption_ensemble import Reseption_Ensemble
+		if model_path == None:
+			network = Reseption_Ensemble()
+		else:
+			network = Reseption_Ensemble(init_weights = False)
 			network.load_state_dict(load(model_path))
 
 	elif model_name == "mini_inception":
+		from models.mini_inception import MiniInception
 		if model_path == None:
 			network = MiniInception()
 		else:
@@ -45,6 +55,7 @@ def get_model(model_name, model_path = None, pretrained = False):
 			network.load_state_dict(load(model_path))
 
 	elif model_name == "xception":
+		from models.xception import Binary_Xception
 		if model_path == None:
 			network = Binary_Xception(pretrained = pretrained)
 		else:
@@ -52,6 +63,7 @@ def get_model(model_name, model_path = None, pretrained = False):
 			network.load_state_dict(load(model_path))
 	
 	elif model_name == "inception_v3":
+		from models.inception_v3 import Binary_Inception
 		if model_path == None:
 			network = Binary_Inception(pretrained = pretrained)
 		else:
@@ -59,6 +71,7 @@ def get_model(model_name, model_path = None, pretrained = False):
 			network.load_state_dict(load(model_path))
 	
 	elif model_name == "resnet152":
+		from models.resnet152 import Binary_ResNet152
 		if model_path == None:
 			network = Binary_ResNet152(pretrained = pretrained)
 		else:
@@ -66,6 +79,7 @@ def get_model(model_name, model_path = None, pretrained = False):
 			network.load_state_dict(load(model_path))
 	
 	elif model_name == "resnext101":
+		from models.resnext101 import Binary_ResNeXt101
 		if model_path == None:
 			network = Binary_ResNeXt101(pretrained = pretrained)
 		else:
@@ -73,6 +87,7 @@ def get_model(model_name, model_path = None, pretrained = False):
 			network.load_state_dict(load(model_path))
 	
 	elif model_name == "efficientnet-b5":
+		from models.efficientnet import Binary_EfficientNet
 		if model_path:
 			network = Binary_EfficientNet.from_name(model_name, {'num_classes': 1})
 			network.load_state_dict(load(model_path))
@@ -80,7 +95,6 @@ def get_model(model_name, model_path = None, pretrained = False):
 			network = Binary_EfficientNet.from_pretrained(model_name, num_classes = 1)
 		else:
 			network = Binary_EfficientNet.from_name(model_name, {'num_classes': 1})
-
 
 	else:
 		raise Exception("Invalid model chosen.")

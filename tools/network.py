@@ -11,7 +11,7 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib import lines
-from sklearn.metrics import balanced_accuracy_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score
 
 from tools.batch import BatchGenerator
 from models import model_helpers
@@ -91,12 +91,11 @@ class Network:
 				self.ave_grads[layer].append(p.grad.abs().mean().cpu().detach().numpy())
 				self.max_grads[layer].append(p.grad.abs().max().cpu().detach().numpy())
 
-
 	"""
 	Plots the gradients flowing through different layers in the net during training.
 	Can be used for checking for possible gradient vanishing / exploding problems.
 	"""
-	def plot_grad_flow(self, show = False):
+	def plot_grad_flow(self, show = False, epoch = None):
 		ave_grads = [np.mean(layer_ave_grads) for layer_ave_grads in self.ave_grads.values()]
 		max_grads = [np.max(layer_max_grads) for layer_max_grads in self.max_grads.values()]
 
@@ -109,13 +108,13 @@ class Network:
 		plt.ylim(bottom=0, top=0.2)
 		plt.xlabel("Layers")
 		plt.ylabel("Gradient Value")
-		plt.title("Gradient Flow")
+		plt.title(self.model_name + ' Epoch ' + str(epoch) + ' ' + "Gradient Flow")
 		plt.grid(True)
 		plt.legend([lines.Line2D([0], [0], color="c", lw=4),
 					lines.Line2D([0], [0], color="b", lw=4)], ['max-gradient', 'mean-gradient'])
 		
 		plt.tight_layout()
-		filename = self.model_name + misc.timestamp() + '.png'
+		filename = self.model_name + '_ep' + str(epoch) + misc.timestamp() + '.png'
 		filename = os.path.join('outputs', 'gradient_plots', filename)
 		plt.savefig(filename, format = 'png')
 		if show:
@@ -147,11 +146,11 @@ class Network:
 		dataset    		- choice of dataset to train on
 		dataset_path	- path to dataset on local machine
 	"""
-	def train(self, dataset, dataset_path, epochs = 10, batch_size = 12, 
-			lr = 0.001, momentum = 0.9, training_level = 'full', training_type = 'various'):
+	def train(self, dataset, dataset_path, epochs = 10, batch_size = 12, lr = 0.001, momentum = 0.9, weight_decay = 0, 
+		optimizer_choice = 'radam', training_level = 'full', training_type = 'various', gradient_scaling = True):
 		
 		# Display network parameter division ratios
-		model_helpers.count_parameters(self.network)
+		# model_helpers.count_parameters(self.network)
 
 		# Assert the batch_size is even
 		assert batch_size % 2 == 0, "Uneven batch_size: {}".format(batch_size)
@@ -170,27 +169,32 @@ class Network:
 		higher_level_lr = 1. * classifier_lr
 		lower_level_lr = 1. * higher_level_lr
 		if training_level == 'full':
-			optimizer = RAdam(self.network.parameters(), lr = lr, weight_decay = 4e-5, gradient_noise_addition = False)
-			# optimizer = optim.SGD(self.network.parameters(), lr = lr, momentum = momentum, weight_decay = 0)
+			if optimizer_choice == 'radam':
+				optimizer = RAdam(self.network.parameters(), lr = lr, weight_decay = weight_decay)
+			else:
+				optimizer = optim.SGD(self.network.parameters(), lr = lr, momentum = momentum, weight_decay = weight_decay)
 		else:
-			optimizer = RAdam([
-				{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
-				{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
-				{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = 4e-5, gradient_noise_addition = False)
-			# optimizer = optim.SGD([
-			# 	{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
-			# 	{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
-			# 	{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], momentum = momentum)
+			if optimizer_choice == 'radam':
+				optimizer = RAdam([
+					{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
+					{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
+					{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], weight_decay = weight_decay)
+			else:
+				optimizer = optim.SGD([
+					{'params': self.network.classifier_parameters(), 'lr': classifier_lr},
+					{'params': self.network.higher_level_parameters(), 'lr': higher_level_lr},
+					{'params': self.network.lower_level_parameters(), 'lr': lower_level_lr}], momentum = momentum, weight_decay = weight_decay)
 		
 		# LR Schedulers
-		# Reduce lr by factor of 0.94 every 2 epochs
-		scheduler_StepLR = optim.lr_scheduler.StepLR(optimizer, step_size = 2, gamma = 0.94)
+		# Reduce lr by factor of 0.94 every 1 or 2 epochs
+		scheduler_StepLR = optim.lr_scheduler.StepLR(optimizer, 
+			step_size = 1 if training_level == 'classifier' else 2, gamma = 0.94)
 		# Reduce lr by factor of 0.5 if loss doesn't improve
-		scheduler_Plateau = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'min', factor = 0.5, 
-			patience = 1 if training_type == 'various' else 0)
+		scheduler_Plateau = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
+			mode = 'min', factor = 0.5, patience = 2 if training_type == 'various' else 0)
 		# Reduce lr by factor of 0.5 if balanced accuracy doesn't improve
-		# scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'max', factor = 0.5, 
-		# 	patience = 2 if training_type == 'various' else 0)
+		# scheduler_Plateau = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'max', factor = 0.5, 
+		# 	patience = 1 if training_type == 'various' else 0)
 
 		scaler = GradScaler()
 
@@ -279,25 +283,29 @@ class Network:
 				if training_type == 'dual' or (training_type == 'various' and len(data) == batch_size):
 					# Get batch
 					if training_type == 'dual':
-						batch = BG.multiple_frames_per_video(data = data)
+						batch = BG.multiple_frames_per_video(data = data, mode = 'train')
 					elif training_type == 'various':
 						batch = BG.single_frame_per_video(data = data)
 					data = []
 
-					# self.network.zero_grad()
 					optimizer.zero_grad()
 					output = self.network(batch.detach())
+					
 					# Compute loss and do backpropagation
 					err = self.criterion(output, labels)
-					# err.backward()
-					scaler.scale(err).backward()
+					if gradient_scaling:
+						scaler.scale(err).backward()
+					else:
+						err.backward()
+					
 					# Optimizer step applying gradients from results
-					# optimizer.step()
-					scaler.step(optimizer)
-					scaler.update()
+					if gradient_scaling:
+						scaler.step(optimizer)
+						scaler.update()
+					else:
+						optimizer.step()
 
-					self.record_grad_flow()
-					# self.plot_grad_flow()
+					# self.record_grad_flow()
 
 					# Get loss
 					err = err.item()
@@ -314,7 +322,7 @@ class Network:
 					postfix_dict = {'loss': round(np.mean(errors), 2), 'acc': round(np.mean(accuracies), 2)}
 					progress_bar.set_postfix(postfix_dict, refresh = False)
 
-			self.plot_grad_flow()
+			# self.plot_grad_flow(epoch = epoch)
 
 			# Clean CUDA cache
 			torch.cuda.empty_cache()
@@ -330,7 +338,7 @@ class Network:
 
 			# Scheduler step
 			scheduler_StepLR.step()
-			scheduler_Plateau.step(val_loss)
+			scheduler_Plateau.step(np.mean(errors))
 
 			# Add to epoch log
 			log_string = "{},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},\n".format(
@@ -346,7 +354,7 @@ class Network:
 		batch_size	 	- number of frames to be grabbed from each video
 		val_log_info 	- (filename, epoch_number) info for logging
 	"""
-	def evaluate(self, dataset, dataset_path, mode, batch_size = 24, val_log_info = None):
+	def evaluate(self, dataset, dataset_path, mode, batch_size = 24, log_info = None):
 		
 		self.network.eval()
 		
@@ -366,6 +374,14 @@ class Network:
 
 		# Predictions for balanced accuracy calculation
 		output_true, output_pred = [], []
+
+		# Setup logging
+		if log_info:
+			log_filename, epoch = log_info
+		else:
+			filename = self.model_name + "_" + dataset + "_" + mode
+			log_header = "Epoch,Folder,Video,Label,AvgOutput,Loss,Acc\n"
+			log_filename, epoch = misc.create_log(filename, header_string = log_header), 0
 		
 		# Run evaluation loop
 		for video_path, label in progress_bar:
@@ -379,7 +395,7 @@ class Network:
 			data_dict['frame_numbers'] = frame_numbers
 
 			# Get batch
-			batch = BG.multiple_frames_per_video([data_dict])
+			batch = BG.multiple_frames_per_video([data_dict], mode = 'eval')
 			# Get label tensor for this video
 			label = 0 if label == 'FAKE' else 1
 			labels = torch.tensor([label] * batch_size, device = self.device, requires_grad = False, dtype = torch.float)
@@ -409,16 +425,15 @@ class Network:
 			output_true.append(label)
 			output_pred.append(1 if avg_output > 0.5 else 0)
 
-			# Log results if val_log_info exists
-			if val_log_info:
-				validation_log_filename, epoch = val_log_info
-				video = os.path.basename(video_path)
-				folder = video_path.split('\\')[-4]
-				log_string = "{},{},{},{},{:.2f},{:.2f},{:.2f},\n".format(epoch, folder, video, label, avg_output, err, acc)
-				misc.add_to_log(log_file = validation_log_filename, log_string = log_string)
+			# Log results
+			video = os.path.basename(video_path)
+			folder = video_path.split('\\')[-4]
+			log_string = "{},{},{},{},{:.2f},{:.2f},{:.2f},\n".format(epoch, folder, video, label, avg_output, err, acc)
+			misc.add_to_log(log_file = log_filename, log_string = log_string)
 
 		torch.cuda.empty_cache()
+		vc_acc = accuracy_score(output_true, output_pred) * 100
 		bal_acc = balanced_accuracy_score(output_true, output_pred) * 100
-		print('Balanced accuracy score: {:.2f}%'.format(bal_acc))
+		print('Video classification accuracy: {:.2f}%, Balanced accuracy: {:.2f}%'.format(vc_acc, bal_acc))
 		return {'loss': np.mean(overall_err), 'acc': np.mean(overall_acc), 'balanced_acc': bal_acc}
 
