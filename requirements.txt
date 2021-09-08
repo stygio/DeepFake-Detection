@@ -1,4 +1,4 @@
-Pillow==6.2.2
+Pillow==8.3.2
 opencv-python
 tensorflow_gpu==1.14.0
 tqdm
