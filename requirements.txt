@@ -1,6 +1,6 @@
 Pillow==6.2.2
 opencv-python
-tensorflow_gpu==1.14.0
+tensorflow_gpu==2.7.2
 tqdm
 matplotlib
 efficientnet-pytorch
